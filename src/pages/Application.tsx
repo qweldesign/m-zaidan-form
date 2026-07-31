@@ -1,6 +1,6 @@
 // src/pages/Application.tsx
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import type { FormData as FormSchema } from '../types/form'
 import { useStepForm } from '../hooks/useStepForm'
@@ -12,7 +12,13 @@ import Section3 from './Application/Section3'
 import Section4 from './Application/Section4'
 import Section5 from './Application/Section5'
 
-function Application() {
+type Props = {
+  editToken?: string
+}
+
+function Application({ editToken }: Props) {
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editBlocked, setEditBlocked] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -169,17 +175,15 @@ function Application() {
         }
       })
 
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/submissions`, {
-        method: 'POST',
-        body: formData,
-        // Content-Typeは指定しない（ブラウザが自動でboundaryを付ける）
-      })
+      // 編集モードはPUT・新規はPOST
+      const url    = isEditMode
+        ? `${import.meta.env.VITE_API_BASE_URL}/api/submissions/edit/${editToken}`
+        : `${import.meta.env.VITE_API_BASE_URL}/api/submissions`
+      const method = isEditMode ? 'PUT' : 'POST'
 
+      const res  = await fetch(url, { method, body: formData })
       const json = await res.json()
-
-      if (!res.ok) {
-        throw new Error(json.error ?? '送信に失敗しました')
-      }
+      if (!res.ok) throw new Error(json.error ?? '送信に失敗しました')
 
       // 送信成功
       clearStorage()
@@ -190,6 +194,67 @@ function Application() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // トークンがある場合はAPIからデータ取得して復元
+  useEffect(() => {
+    if (!editToken) return
+
+    const fetchDraft = async () => {
+      try {
+        const res  = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/submissions/edit/${editToken}`)
+        const json = await res.json()
+        if (!res.ok) {
+          alert('申請データの取得に失敗しました。URLを確認してください。')
+          return
+        }
+
+        // 審査前以外は編集不可
+        if (json.data.status !== '審査前') {
+          setEditBlocked(true)
+          return
+        }
+
+        // フォームにデータを復元
+        const d = json.data
+        reset({
+          section1: d.section1_json,
+          section2: d.section2_json,
+          section3: d.section3_json,
+          section4: d.section4_json,
+          section5: {
+            photos: [],      // ファイルは再選択
+            docs: {
+              regulations:   null,
+              activityReport: null,
+              financialReport: null,
+              activityPlan:  null,
+              financialPlan: null,
+            },
+            confirmed: false,
+          },
+        })
+        setIsEditMode(true)
+      } catch {
+        alert('申請データの取得中にエラーが発生しました。')
+      }
+    }
+
+    fetchDraft()
+  }, [editToken])
+
+  // editBlocked の場合はフォームを表示せず案内メッセージを表示
+  if (editBlocked) {
+    return (
+      <div className="text-center py-16 space-y-4">
+        <div className="text-5xl">🔒</div>
+        <h2 className="text-2xl font-bold text-slate-800">申請内容を変更できません</h2>
+        <p className="text-slate-600 leading-7">
+          この申請はすでに受理されているため、内容の変更はできません。<br />
+          ご不明な点は財団までお問い合わせください。
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -214,10 +279,13 @@ function Application() {
           <div className="text-center py-16 space-y-6">
             <div className="text-5xl">✅</div>
             <h2 className="text-2xl font-bold text-slate-800">
-              申請を受け付けました
+              {isEditMode ? '申請内容を更新しました' : '申請を受け付けました'}
             </h2>
             <p className="text-slate-600 leading-7">
-              ご登録のメールアドレスに受付完了メールをお送りしました。\n内容を確認のうえ、担当者よりご連絡いたします。
+              {isEditMode
+                ? '申請内容が更新されました。担当者よりご連絡いたします。'
+                : 'ご登録のメールアドレスに受付完了メールをお送りしました。\n内容を確認のうえ、担当者よりご連絡いたします。'
+              }
             </p>
           </div>
         )}
