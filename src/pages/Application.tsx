@@ -11,7 +11,9 @@ import Section5 from './Application/Section5'
 
 function Application() {
   const {
+    register, watch,
     control,
+    formState: { errors },
   } = useForm<FormSchema>({
     defaultValues: {
       section1: {
@@ -112,11 +114,11 @@ function Application() {
       <h2 className="mt-3 mb-6 font-bold text-2xl">要望申請フォーム</h2>
 
       <form>
-        {step === 1 && <Section1 />}
-        {step === 2 && <Section2 />}
-        {step === 3 && <Section3 control={control} />}
-        {step === 4 && <Section4 />}
-        {step === 5 && <Section5 control={control} />}
+        {step === 1 && <Section1 register={register} errors={errors} watch={watch} />}
+        {step === 2 && <Section2 register={register} errors={errors} watch={watch} />}
+        {step === 3 && <Section3 register={register} errors={errors} watch={watch} control={control} />}
+        {step === 4 && <Section4 register={register} errors={errors} watch={watch} />}
+        {step === 5 && <Section5 register={register} errors={errors} watch={watch} control={control} />}
         {step === 6 && (
           <div className="text-center py-16 space-y-6">
             <div className="text-5xl">✅</div>

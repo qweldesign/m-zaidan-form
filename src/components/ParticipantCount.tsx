@@ -1,24 +1,38 @@
 // src/components/ParticipantCount.tsx
 
+import type { UseFormRegister, FieldErrors, UseFormWatch, Path, FieldValues } from 'react-hook-form'
+
 type CountFields = {
   countField: string
   daysField: string
 }
 
-type Props = {
+type Props<T extends FieldValues> = {
+  register: UseFormRegister<T>
+  errors: FieldErrors<T>
+  watch: UseFormWatch<T>
   organizer: CountFields
   participant: CountFields
   sectionTitle?: string
 }
 
-function ParticipantCount({
+function ParticipantCount<T extends FieldValues>({
+  register,
+  watch,
   organizer,
   participant,
   sectionTitle = '参加人数',
-}: Props) {
+}: Props<T>) {
+
+  const organizerCount   = Number(watch(organizer.countField as Path<T>))   || 0
+  const organizerDays    = Number(watch(organizer.daysField  as Path<T>))   || 0
+  const participantCount = Number(watch(participant.countField as Path<T>)) || 0
+  const participantDays  = Number(watch(participant.daysField  as Path<T>)) || 0
 
   const CountRow = ({
     label,
+    countField,
+    daysField,
     total,
   }: {
     label: string
@@ -39,6 +53,9 @@ function ParticipantCount({
                 type="number"
                 min={0}
                 className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                {...register(countField as Path<T>, {
+                  min: { value: 0, message: '0以上を入力してください' },
+                })}
               />
               <span className="text-slate-500 whitespace-nowrap">名</span>
             </div>
@@ -50,6 +67,9 @@ function ParticipantCount({
                 type="number"
                 min={0}
                 className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                {...register(daysField as Path<T>, {
+                  min: { value: 0, message: '0以上を入力してください' },
+                })}
               />
               <span className="text-slate-500 whitespace-nowrap">日</span>
             </div>
@@ -82,13 +102,13 @@ function ParticipantCount({
             label="申請団体側人数"
             countField={organizer.countField}
             daysField={organizer.daysField}
-            total={0} // 後で自動計算を実装
+            total={organizerCount * organizerDays}
           />
           <CountRow
             label="参加側人数"
             countField={participant.countField}
             daysField={participant.daysField}
-            total={0} // 後で自動計算を実装
+            total={participantCount * participantDays}
           />
         </tbody>
       </table>

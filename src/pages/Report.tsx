@@ -9,7 +9,9 @@ import ReportSection3 from './Report/Section3'
 
 function Report() {
   const {
+    register, watch,
     control,
+    formState: { errors },
   } = useForm<ReportFormData>({
     defaultValues: {
       reportSection1: {
@@ -66,9 +68,9 @@ function Report() {
       <h2 className="mt-3 mb-6 font-bold text-2xl">完了報告フォーム</h2>
 
       <form>
-        {step === 1 && <ReportSection1 />}
-        {step === 2 && <ReportSection2 control={control} />}
-        {step === 3 && <ReportSection3 control={control} />}
+        {step === 1 && <ReportSection1 register={register} errors={errors} watch={watch} />}
+        {step === 2 && <ReportSection2 register={register} errors={errors} watch={watch} control={control} />}
+        {step === 3 && <ReportSection3 register={register} errors={errors} watch={watch} control={control} />}
         {step === 4 && (
           <div className="text-center py-16 space-y-6">
             <div className="text-5xl">✅</div>

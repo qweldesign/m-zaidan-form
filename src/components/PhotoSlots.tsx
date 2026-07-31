@@ -1,16 +1,17 @@
 // src/components/PhotoSlots.tsx
 
-import type { Control, FieldValues, Path } from 'react-hook-form'
+import type { Control, FieldValues, Path, FieldErrors } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
 type Props<T extends FieldValues> = {
   control: Control<T>
+  errors: FieldErrors<T>
   name: Path<T>
   maxSlots: number
   required?: boolean
 }
 
-function PhotoSlots<T extends FieldValues>({ control, name, maxSlots, required = false }: Props<T>) {
+function PhotoSlots<T extends FieldValues>({ control, errors, name, maxSlots, required = false }: Props<T>) {
   return (
     <>
       <Controller
@@ -75,6 +76,11 @@ function PhotoSlots<T extends FieldValues>({ control, name, maxSlots, required =
           </div>
         )}
       />
+      {(errors as any)[name.split('.')[0]]?.photos && (
+        <p className="text-red-500 text-sm mt-2">
+          {(errors as any)[name.split('.')[0]].photos.message}
+        </p>
+      )}
     </>
   )
 }

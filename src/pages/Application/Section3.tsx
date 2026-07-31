@@ -1,14 +1,18 @@
 // src/pages/Application/Section3.tsx
 
-import type { Control } from 'react-hook-form'
+import type { UseFormRegister, FieldErrors, UseFormWatch, Control } from 'react-hook-form'
 import type { FormData } from '../../types/form'
 import BudgetTable from '../../components/BudgetTable'
 
 type Props = {
+  register: UseFormRegister<FormData>
+  errors: FieldErrors<FormData>
+  watch: UseFormWatch<FormData>
   control: Control<FormData>
 }
 
-function Section3({ control }: Props) {
+function Section3({ register, errors, watch, control }: Props) {
+
   return (
     <section className="space-y-8">
 
@@ -30,6 +34,9 @@ function Section3({ control }: Props) {
       </div>
 
       <BudgetTable
+        register={register}
+        errors={errors}
+        watch={watch}
         control={control}
         prefix="section3"
         incomeDescription="申請事業に関する収入予定をご記入ください。"

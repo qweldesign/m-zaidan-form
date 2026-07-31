@@ -1,8 +1,20 @@
 // src/pages//Application/Section2.tsx
 
+import type { UseFormRegister, FieldErrors, UseFormWatch } from 'react-hook-form'
+import type { FormData } from '../../types/form'
 import ParticipantCount from '../../components/ParticipantCount'
 
-function Section2() {
+type Props = {
+  register: UseFormRegister<FormData>
+  errors: FieldErrors<FormData>
+  watch: UseFormWatch<FormData>
+}
+
+function Section2({ register, errors, watch }: Props) {
+
+  // 日程の前後チェック用
+  const startDate = watch('section2.startDate')
+
   return (
     <section className="space-y-8">
 
@@ -39,7 +51,14 @@ function Section2() {
                   type="text"
                   placeholder="例：地域交流型 海岸清掃イベント"
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                  {...register('section2.projectName', {
+                    required: '事業名称を入力してください',
+                    maxLength: { value: 100, message: '100文字以内で入力してください' },
+                  })}
                 />
+                {errors.section2?.projectName && (
+                  <p className="text-red-500 text-sm mt-1">{errors.section2.projectName.message}</p>
+                )}
               </td>
             </tr>
 
@@ -56,7 +75,13 @@ function Section2() {
                     <input
                       type="date"
                       className="w-full md:w-auto p-3 border border-slate-300 rounded-lg bg-white"
+                      {...register('section2.startDate', {
+                        required: '開始日を入力してください',
+                      })}
                     />
+                    {errors.section2?.startDate && (
+                      <p className="text-red-500 text-sm">{errors.section2.startDate.message}</p>
+                    )}
                   </div>
 
                   <span className="text-slate-500">〜</span>
@@ -65,7 +90,15 @@ function Section2() {
                     <input
                       type="date"
                       className="w-full md:w-auto p-3 border border-slate-300 rounded-lg bg-white"
+                      {...register('section2.endDate', {
+                        required: '終了日を入力してください',
+                        validate: (v) =>
+                          !startDate || v >= startDate || '終了日は開始日以降を入力してください',
+                      })}
                     />
+                    {errors.section2?.endDate && (
+                      <p className="text-red-500 text-sm">{errors.section2.endDate.message}</p>
+                    )}
                   </div>
                 </div>
               </td>
@@ -83,7 +116,13 @@ function Section2() {
                   type="text"
                   placeholder="例：〇〇市民センター"
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                  {...register('section2.venue', {
+                    required: '開催場所を入力してください',
+                  })}
                 />
+                {errors.section2?.venue && (
+                  <p className="text-red-500 text-sm mt-1">{errors.section2.venue.message}</p>
+                )}
               </td>
             </tr>
 
@@ -97,6 +136,7 @@ function Section2() {
                   type="text"
                   placeholder="例：福井県内全域"
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                  {...register('section2.recruitmentArea')}
                 />
               </td>
             </tr>
@@ -107,6 +147,9 @@ function Section2() {
 
       {/* 参加人数 */}
       <ParticipantCount
+        register={register}
+        errors={errors}
+        watch={watch}
         organizer={{ countField: 'section2.organizer.count', daysField: 'section2.organizer.days' }}
         participant={{ countField: 'section2.participants.count', daysField: 'section2.participants.days' }}
       />
@@ -133,7 +176,20 @@ function Section2() {
                 <textarea
                   placeholder="事業内容をご記入ください"
                   className="w-full min-h-60 p-4 border border-slate-300 rounded-xl bg-white"
+                  {...register('section2.projectDetail', {
+                    required: '事業の詳細を入力してください',
+                    maxLength: { value: 1000, message: '1000文字以内で入力してください' },
+                  })}
                 />
+                <div className="flex justify-between mt-1">
+                  {errors.section2?.projectDetail
+                    ? <p className="text-red-500 text-sm">{errors.section2.projectDetail.message}</p>
+                    : <span />
+                  }
+                  <p className="text-sm text-slate-400">
+                    {watch('section2.projectDetail')?.length ?? 0} / 1000
+                  </p>
+                </div>
               </td>
             </tr>
 
@@ -149,7 +205,20 @@ function Section2() {
                 <textarea
                   placeholder="目的やねらいをご記入ください"
                   className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
+                  {...register('section2.projectPurpose', {
+                    required: '実施目的・ねらいを入力してください',
+                    maxLength: { value: 500, message: '500文字以内で入力してください' },
+                  })}
                 />
+                <div className="flex justify-between mt-1">
+                  {errors.section2?.projectPurpose
+                    ? <p className="text-red-500 text-sm">{errors.section2.projectPurpose.message}</p>
+                    : <span />
+                  }
+                  <p className="text-sm text-slate-400">
+                    {watch('section2.projectPurpose')?.length ?? 0} / 500
+                  </p>
+                </div>
               </td>
             </tr>
 
@@ -162,7 +231,18 @@ function Section2() {
                 <textarea
                   placeholder="特徴やPRポイントをご記入ください"
                   className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
+                  {...register('section2.projectPR', {
+                    maxLength: { value: 500, message: '500文字以内で入力してください' },
+                  })}
                 />
+                <div className="flex justify-end mt-1">
+                  <p className="text-sm text-slate-400">
+                    {watch('section2.projectPR')?.length ?? 0} / 500
+                  </p>
+                </div>
+                {errors.section2?.projectPR && (
+                  <p className="text-red-500 text-sm mt-1">{errors.section2.projectPR.message}</p>
+                )}
               </td>
             </tr>
 
@@ -187,6 +267,7 @@ function Section2() {
                 <textarea
                   placeholder="団体名などをご記入ください"
                   className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
+                  {...register('section2.coOrganizers')}
                 />
               </td>
             </tr>

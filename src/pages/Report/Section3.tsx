@@ -1,15 +1,21 @@
 // src/pages/Report/Section3.tsx
 
-import type { Control } from 'react-hook-form'
+import type { UseFormRegister, FieldErrors, UseFormWatch, Control } from 'react-hook-form'
 import type { ReportFormData } from '../../types/form'
 import PhotoSlots from '../../components/PhotoSlots'
 import ReceiptUploader from '../../components/ReceiptUploader'
 
 type Props = {
+  register: UseFormRegister<ReportFormData>
+  errors: FieldErrors<ReportFormData>
+  watch: UseFormWatch<ReportFormData>
   control: Control<ReportFormData>
 }
 
-function ReportSection3({ control }: Props) {
+function ReportSection3({ register, errors, watch, control }: Props) {
+
+  const confirmed = watch('reportSection3.confirmed')
+
   return (
     <section className="space-y-8">
 
@@ -40,10 +46,15 @@ function ReportSection3({ control }: Props) {
 
                 <PhotoSlots
                   control={control}
+                  errors={errors}
                   name="reportSection3.photos"
                   maxSlots={2}
                   required
                 />
+
+                {errors.reportSection3?.photos && (
+                  <p className="text-red-500 text-sm mt-2">{errors.reportSection3.photos.message as string}</p>
+                )}
               </td>
             </tr>
           </tbody>
@@ -70,6 +81,7 @@ function ReportSection3({ control }: Props) {
               <td className="block md:table-cell p-5">
                 <ReceiptUploader
                   control={control}
+                  errors={errors}
                   name="reportSection3.receipts"
                 />
               </td>
@@ -84,17 +96,25 @@ function ReportSection3({ control }: Props) {
           <input
             type="checkbox"
             className="mt-1 w-5 h-5"
+            {...register('reportSection3.confirmed', {
+              required: '内容を確認してチェックしてください',
+            })}
           />
           <span className="leading-7 text-slate-700">
             入力内容および添付資料に誤りがないことを確認しました。
           </span>
         </label>
+        {errors.reportSection3?.confirmed && (
+          <p className="text-red-500 text-sm mt-2 ml-9">{errors.reportSection3.confirmed.message}</p>
+        )}
       </section>
 
       {/* 送信前の注意 */}
-      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-800 leading-7">
-        送信ボタンを押すと完了報告が完了します。送信後の内容変更はできませんので、今一度ご確認ください。
-      </div>
+      {confirmed && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-800 leading-7">
+          送信ボタンを押すと完了報告が完了します。送信後の内容変更はできませんので、今一度ご確認ください。
+        </div>
+      )}
 
     </section>
   )

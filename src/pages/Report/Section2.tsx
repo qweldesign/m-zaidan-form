@@ -1,15 +1,20 @@
 // src/pages/Report/Section2.tsx
 
-import type { Control } from 'react-hook-form'
+import type { UseFormRegister, FieldErrors, UseFormWatch, Control } from 'react-hook-form'
 import type { ReportFormData } from '../../types/form'
 import ParticipantCount from '../../components/ParticipantCount'
 import BudgetTable from '../../components/BudgetTable'
 
 type Props = {
+  register: UseFormRegister<ReportFormData>
+  errors: FieldErrors<ReportFormData>
+  watch: UseFormWatch<ReportFormData>
   control: Control<ReportFormData>
 }
 
-function ReportSection2({ control }: Props) {
+function ReportSection2({ register, errors, watch, control }: Props) {
+
+  const actualStartDate = watch('reportSection2.actualStartDate')
 
   return (
     <section className="space-y-8">
@@ -39,7 +44,13 @@ function ReportSection2({ control }: Props) {
                 <input
                   type="text"
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                  {...register('reportSection2.projectName', {
+                    required: '事業名称を入力してください',
+                  })}
                 />
+                {errors.reportSection2?.projectName && (
+                  <p className="text-red-500 text-sm mt-1">{errors.reportSection2.projectName.message}</p>
+                )}
               </td>
             </tr>
 
@@ -60,11 +71,17 @@ function ReportSection2({ control }: Props) {
                       <input
                         type="radio"
                         value={label}
+                        {...register('reportSection2.activityCategory', {
+                          required: '活動カテゴリーを選択してください',
+                        })}
                       />
                       <span>{label}</span>
                     </label>
                   ))}
                 </div>
+                {errors.reportSection2?.activityCategory && (
+                  <p className="text-red-500 text-sm mt-2">{errors.reportSection2.activityCategory.message}</p>
+                )}
               </td>
             </tr>
 
@@ -81,14 +98,28 @@ function ReportSection2({ control }: Props) {
                     <input
                       type="date"
                       className="w-full md:w-auto p-3 border border-slate-300 rounded-lg bg-white"
+                      {...register('reportSection2.actualStartDate', {
+                        required: '開始日を入力してください',
+                      })}
                     />
+                    {errors.reportSection2?.actualStartDate && (
+                      <p className="text-red-500 text-sm">{errors.reportSection2.actualStartDate.message}</p>
+                    )}
                   </div>
                   <span className="text-slate-500">〜</span>
                   <div className="flex flex-col gap-1">
                     <input
                       type="date"
                       className="w-full md:w-auto p-3 border border-slate-300 rounded-lg bg-white"
+                      {...register('reportSection2.actualEndDate', {
+                        required: '終了日を入力してください',
+                        validate: (v) =>
+                          !actualStartDate || v >= actualStartDate || '終了日は開始日以降を入力してください',
+                      })}
                     />
+                    {errors.reportSection2?.actualEndDate && (
+                      <p className="text-red-500 text-sm">{errors.reportSection2.actualEndDate.message}</p>
+                    )}
                   </div>
                 </div>
               </td>
@@ -105,7 +136,13 @@ function ReportSection2({ control }: Props) {
                 <input
                   type="text"
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                  {...register('reportSection2.actualVenue', {
+                    required: '実施場所を入力してください',
+                  })}
                 />
+                {errors.reportSection2?.actualVenue && (
+                  <p className="text-red-500 text-sm mt-1">{errors.reportSection2.actualVenue.message}</p>
+                )}
               </td>
             </tr>
 
@@ -115,6 +152,9 @@ function ReportSection2({ control }: Props) {
 
       {/* 参加人数 */}
       <ParticipantCount
+        register={register}
+        errors={errors}
+        watch={watch}
         organizer={{ countField: 'reportSection2.organizerCount', daysField: 'reportSection2.organizerDays' }}
         participant={{ countField: 'reportSection2.participantCount', daysField: 'reportSection2.participantDays' }}
         sectionTitle="参加人数（実績）"
@@ -136,7 +176,20 @@ function ReportSection2({ control }: Props) {
               <td className="block md:table-cell p-5">
                 <textarea
                   className="w-full min-h-60 p-4 border border-slate-300 rounded-xl bg-white"
+                  {...register('reportSection2.actualDetail', {
+                    required: '実施内容を入力してください',
+                    maxLength: { value: 1000, message: '1000文字以内で入力してください' },
+                  })}
                 />
+                <div className="flex justify-between mt-1">
+                  {errors.reportSection2?.actualDetail
+                    ? <p className="text-red-500 text-sm">{errors.reportSection2.actualDetail.message}</p>
+                    : <span />
+                  }
+                  <p className="text-sm text-slate-400">
+                    {watch('reportSection2.actualDetail')?.length ?? 0} / 1000
+                  </p>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -155,6 +208,9 @@ function ReportSection2({ control }: Props) {
       </div>
 
       <BudgetTable
+        register={register}
+        errors={errors}
+        watch={watch}
         control={control}
         prefix="reportSection2"
         expenseDescription="申請事業に関する支出実績をご記入ください。必要に応じて行を追加してください。"

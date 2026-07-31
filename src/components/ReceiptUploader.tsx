@@ -1,14 +1,15 @@
 // src/components/ReceiptUploader.tsx
 
-import type { Control, FieldValues, Path } from 'react-hook-form'
+import type { Control, FieldErrors, FieldValues, Path } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
 
 type Props<T extends FieldValues> = {
   control: Control<T>
+  errors: FieldErrors<T>
   name: Path<T>
 }
 
-function ReceiptUploader<T extends FieldValues>({ control, name }: Props<T>) {
+function ReceiptUploader<T extends FieldValues>({ control, errors, name }: Props<T>) {
   return (
     <>
       <Controller
@@ -90,6 +91,12 @@ function ReceiptUploader<T extends FieldValues>({ control, name }: Props<T>) {
           )
         }}
       />
+      {(() => {
+        const key = name.split('.').reduce((obj: any, k) => obj?.[k], errors)
+        return key?.message
+          ? <p className="text-red-500 text-sm mt-2">{key.message as string}</p>
+          : null
+      })()}
     </>
   )
 }

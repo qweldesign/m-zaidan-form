@@ -1,5 +1,14 @@
 // src/pages/Application/Section4.tsx
 
+import type { UseFormRegister, FieldErrors, UseFormWatch } from 'react-hook-form'
+import type { FormData } from '../../types/form'
+
+type Props = {
+  register: UseFormRegister<FormData>
+  errors: FieldErrors<FormData>
+  watch: UseFormWatch<FormData>
+}
+
 const ESTABLISHMENT_PURPOSES = [
   '青少年および高齢者支援', '障がい者支援', '環境美化・保全活動',
   '児童青少年の健全育成のためのスポーツ活動',
@@ -7,7 +16,11 @@ const ESTABLISHMENT_PURPOSES = [
   '地域に密着した諸市民活動', 'その他',
 ]
 
-function Section4() {
+function Section4({ register, errors, watch }: Props) {
+
+  const hasAward = watch('section4.hasAward')
+  const hasCommunityInvolvement = watch('section4.hasCommunityInvolvement')
+
   return (
     <section className="space-y-8">
 
@@ -45,6 +58,7 @@ function Section4() {
                       <input
                         type="checkbox"
                         value={label}
+                        {...register('section4.establishmentPurpose')}
                       />
                       <span>{label}</span>
                     </label>
@@ -64,7 +78,24 @@ function Section4() {
               <td className="block md:table-cell p-5">
                 <textarea
                   className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
+                  {...register('section4.establishmentBackground', {
+                    required: '設立の背景・きっかけを入力してください',
+                    maxLength: { value: 200, message: '200文字以内で入力してください' },
+                  })}
                 />
+                <div className="flex justify-between mt-1">
+                  {errors.section4?.establishmentBackground
+                    ? <p className="text-red-500 text-sm">{errors.section4.establishmentBackground.message}</p>
+                    : <span />
+                  }
+                  <p className={`text-sm ${
+                    (watch('section4.establishmentBackground')?.length ?? 0) < 100
+                      ? 'text-orange-400'
+                      : 'text-slate-400'
+                  }`}>
+                    {watch('section4.establishmentBackground')?.length ?? 0} / 200
+                  </p>
+                </div>
               </td>
             </tr>
 
@@ -98,11 +129,17 @@ function Section4() {
                       <input
                         type="radio"
                         value={label}
+                        {...register('section4.activityFrequency', {
+                          required: '活動頻度を選択してください',
+                        })}
                       />
                       <span>{label}</span>
                     </label>
                   ))}
                 </div>
+                {errors.section4?.activityFrequency && (
+                  <p className="text-red-500 text-sm mt-2">{errors.section4.activityFrequency.message}</p>
+                )}
               </td>
             </tr>
 
@@ -116,7 +153,21 @@ function Section4() {
               <td className="block md:table-cell p-5">
                 <textarea
                   className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
+                  {...register('section4.activityContent', {
+                    required: '活動内容を入力してください',
+                    maxLength: { value: 300, message: '300文字以内で入力してください' },
+                  })}
                 />
+                <div className="flex justify-between mt-1">
+                  <span>
+                    {errors.section4?.activityContent && (
+                      <p className="text-red-500 text-sm">{errors.section4.activityContent.message}</p>
+                    )}
+                  </span>
+                  <p className="text-sm text-slate-400">
+                    {watch('section4.activityContent')?.length ?? 0} / 300
+                  </p>
+                </div>
               </td>
             </tr>
 
@@ -148,6 +199,7 @@ function Section4() {
                       <input
                         type="radio"
                         value={label}
+                        {...register('section4.hasAward')}
                       />
                       <span>{label}</span>
                     </label>
@@ -155,10 +207,18 @@ function Section4() {
                 </div>
 
                 {/* 「あり」のときだけ展開 */}
-                <textarea
-                  placeholder="受賞歴・表彰歴・戦績など"
-                  className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
-                />
+                {hasAward === 'あり' && (
+                  <textarea
+                    placeholder="受賞歴・表彰歴・戦績など"
+                    className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
+                    {...register('section4.awardDetail', {
+                      required: hasAward === 'あり' ? '受賞歴・表彰歴を入力してください' : false,
+                    })}
+                  />
+                )}
+                {errors.section4?.awardDetail && (
+                  <p className="text-red-500 text-sm mt-1">{errors.section4.awardDetail.message}</p>
+                )}
               </td>
             </tr>
 
@@ -177,17 +237,29 @@ function Section4() {
                       <input
                         type="radio"
                         value={label}
+                        {...register('section4.hasCommunityInvolvement')}
                       />
                       <span>{label}</span>
                     </label>
                   ))}
                 </div>
 
-                {/* 「あり」のときだけ展開 */}
-                <textarea
-                  placeholder="地域との関わりの内容をご記入ください"
-                  className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
-                />
+                {hasCommunityInvolvement === 'あり' && (
+                  <textarea
+                    placeholder="地域との関わりの内容をご記入ください"
+                    className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
+                    {...register('section4.communityInvolvementDetail', {
+                      required: hasCommunityInvolvement === 'あり'
+                        ? '地域との関わりの内容を入力してください'
+                        : false,
+                    })}
+                  />
+                )}
+                {errors.section4?.communityInvolvementDetail && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.section4.communityInvolvementDetail.message}
+                  </p>
+                )}
               </td>
             </tr>
 
@@ -200,7 +272,20 @@ function Section4() {
               <td className="block md:table-cell p-5">
                 <textarea
                   className="w-full min-h-40 p-4 border border-slate-300 rounded-xl bg-white"
+                  {...register('section4.prNote', {
+                    maxLength: { value: 500, message: '500文字以内で入力してください' },
+                  })}
                 />
+                <div className="flex justify-between mt-1">
+                  <span>
+                    {errors.section4?.prNote && (
+                      <p className="text-red-500 text-sm">{errors.section4.prNote.message}</p>
+                    )}
+                  </span>
+                  <p className="text-sm text-slate-400">
+                    {watch('section4.prNote')?.length ?? 0} / 500
+                  </p>
+                </div>
               </td>
             </tr>
 

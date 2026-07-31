@@ -1,6 +1,6 @@
 // src/components/BudgetTable.tsx
 
-import type { Control, FieldValues, ArrayPath } from 'react-hook-form'
+import type { UseFormRegister, FieldErrors, UseFormWatch, Control, FieldValues, Path, ArrayPath } from 'react-hook-form'
 import { useFieldArray } from 'react-hook-form'
 
 const INCOME_FIELDS = [
@@ -11,6 +11,9 @@ const INCOME_FIELDS = [
 ] as const
 
 type Props<T extends FieldValues> = {
+  register: UseFormRegister<T>
+  errors: FieldErrors<T>
+  watch: UseFormWatch<T>
   control: Control<T>
   // フィールド名のプレフィックス（例: 'section3' / 'reportSection2'）
   prefix: string
@@ -23,6 +26,9 @@ type Props<T extends FieldValues> = {
 }
 
 function BudgetTable<T extends FieldValues>({
+  register,
+  errors,
+  watch,
   control,
   prefix,
   incomeDescription,
@@ -34,6 +40,21 @@ function BudgetTable<T extends FieldValues>({
     control,
     name: `${prefix}.expenses` as ArrayPath<T>,
   })
+
+  // 収入合計
+  const incomeTotal =
+    (Number(watch(`${prefix}.income.grantRequest` as Path<T>)) || 0) +
+    (Number(watch(`${prefix}.income.memberFees`   as Path<T>)) || 0) +
+    (Number(watch(`${prefix}.income.donations`    as Path<T>)) || 0) +
+    (Number(watch(`${prefix}.income.tickets`      as Path<T>)) || 0)
+
+  // 支出合計・助成金使用額合計
+  const expenses     = (watch(`${prefix}.expenses` as Path<T>) as any[]) ?? []
+  const expenseTotal    = expenses.reduce((sum, r) => sum + (Number(r.amount)     || 0), 0)
+  const grantUsageTotal = expenses.reduce((sum, r) => sum + (Number(r.grantUsage) || 0), 0)
+
+  // 検算
+  const grantRequest = Number(watch(`${prefix}.income.grantRequest` as Path<T>)) || 0
 
   return (
     <>
@@ -55,7 +76,10 @@ function BudgetTable<T extends FieldValues>({
               </tr>
             </thead>
             <tbody>
-              {INCOME_FIELDS.map(({ label, field }) => {
+              {INCOME_FIELDS.map(({ label, field, memoField }) => {
+                const fullField     = `${prefix}.${field}`
+                const fullMemoField = `${prefix}.${memoField}`
+                const incomeErrors  = (errors as any)?.[prefix]?.income
                 return (
                   <tr key={field} className="border-b border-slate-100">
                     <td className="p-4 align-top">
@@ -67,14 +91,27 @@ function BudgetTable<T extends FieldValues>({
                           type="number"
                           min={0}
                           className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                          {...register(fullField as Path<T>, {
+                            min: { value: 0, message: '0以上を入力してください' },
+                            validate: (v: any) =>
+                              field === 'income.grantRequest' && (!v || Number(v) <= 0)
+                                ? '助成金要望額を入力してください'
+                                : true,
+                          })}
                         />
                         <span className="text-slate-500 whitespace-nowrap">円</span>
                       </div>
+                      {field === 'income.grantRequest' && incomeErrors?.grantRequest && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {incomeErrors.grantRequest.message}
+                        </p>
+                      )}
                     </td>
                     <td className="p-4 align-top">
                       <input
                         type="text"
                         className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                        {...register(fullMemoField as Path<T>)}
                       />
                     </td>
                   </tr>
@@ -89,7 +126,7 @@ function BudgetTable<T extends FieldValues>({
                     <input
                       type="number"
                       readOnly
-                      value={0} // 後で自動計算を実装
+                      value={incomeTotal}
                       className="w-full p-3 border border-slate-200 rounded-lg bg-sky-50 text-sky-800 font-bold"
                     />
                     <span className="text-slate-500 whitespace-nowrap">円</span>
@@ -159,13 +196,20 @@ function BudgetTable<T extends FieldValues>({
               </tr>
 
               {fields.map((field, index) => {
+                const expenseErrors = (errors as any)?.[prefix]?.expenses?.[index]
                 return (
                   <tr key={field.id} className="border-b border-slate-100">
                     <td className="p-4 align-top">
                       <input
                         type="text"
                         className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                        {...register(`${prefix}.expenses.${index}.subject` as Path<T>, {
+                          required: '科目を入力してください',
+                        })}
                       />
+                      {expenseErrors?.subject && (
+                        <p className="text-red-500 text-sm mt-1">{expenseErrors.subject.message}</p>
+                      )}
                     </td>
                     <td className="p-4 align-top">
                       <div className="flex items-center gap-2">
@@ -173,6 +217,9 @@ function BudgetTable<T extends FieldValues>({
                           type="number"
                           min={0}
                           className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                          {...register(`${prefix}.expenses.${index}.amount` as Path<T>, {
+                            min: { value: 0, message: '0以上を入力してください' },
+                          })}
                         />
                         <span className="text-slate-500 whitespace-nowrap">円</span>
                       </div>
@@ -183,14 +230,25 @@ function BudgetTable<T extends FieldValues>({
                           type="number"
                           min={0}
                           className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                          {...register(`${prefix}.expenses.${index}.grantUsage` as Path<T>, {
+                            min: { value: 0, message: '0以上を入力してください' },
+                            validate: (v: any, formValues: any) => {
+                              const rowAmount = Number(formValues[prefix]?.expenses[index]?.amount) || 0
+                              return Number(v) <= rowAmount || '助成金使用額は支出額を超えられません'
+                            },
+                          })}
                         />
                         <span className="text-slate-500 whitespace-nowrap">円</span>
                       </div>
+                      {expenseErrors?.grantUsage && (
+                        <p className="text-red-500 text-sm mt-1">{expenseErrors.grantUsage.message}</p>
+                      )}
                     </td>
                     <td className="p-4 align-top">
                       <input
                         type="text"
                         className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                        {...register(`${prefix}.expenses.${index}.memo` as Path<T>)}
                       />
                     </td>
                     <td className="p-4 align-top text-center">
@@ -214,22 +272,13 @@ function BudgetTable<T extends FieldValues>({
                 <td className="p-4 font-bold text-sky-900">合計</td>
                 <td className="p-4">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      readOnly
-                      value={0} // 後で自動計算を実装
-                      className="w-full p-3 border border-slate-200 rounded-lg bg-sky-50 text-sky-800 font-bold" />
+                    <input type="number" readOnly value={expenseTotal} className="w-full p-3 border border-slate-200 rounded-lg bg-sky-50 text-sky-800 font-bold" />
                     <span className="text-slate-500 whitespace-nowrap">円</span>
                   </div>
                 </td>
                 <td className="p-4">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      readOnly
-                      value={0} // 後で自動計算を実装
-                      className="w-full p-3 border border-slate-200 rounded-lg bg-sky-50 text-sky-800 font-bold"
-                    />
+                    <input type="number" readOnly value={grantUsageTotal} className="w-full p-3 border border-slate-200 rounded-lg bg-sky-50 text-sky-800 font-bold" />
                     <span className="text-slate-500 whitespace-nowrap">円</span>
                   </div>
                 </td>
@@ -239,6 +288,20 @@ function BudgetTable<T extends FieldValues>({
             </tfoot>
           </table>
         </div>
+
+        {/* 検算 */}
+        {grantRequest > 0 && grantUsageTotal > 0 && grantRequest !== grantUsageTotal && (() => {
+          const diff = grantUsageTotal - grantRequest
+          return (
+            <div className="mx-5 mb-5 p-4 rounded-xl border border-orange-200 bg-orange-50 text-sm text-orange-700">
+              助成金要望額（{grantRequest.toLocaleString()}円）と助成金使用額合計（{grantUsageTotal.toLocaleString()}円）が一致していません。<br />
+              {diff > 0
+                ? `（使用額が ${diff.toLocaleString()} 円多い状態です）`
+                : `（使用額が ${Math.abs(diff).toLocaleString()} 円少ない状態です）`
+              }
+            </div>
+          )
+        })()}
       </section>
 
       {/* 備考 */}
@@ -249,6 +312,7 @@ function BudgetTable<T extends FieldValues>({
         <div className="p-5">
           <textarea
             className="w-full min-h-45 p-4 border border-slate-300 rounded-xl bg-white"
+            {...register(`${prefix}.budgetNote` as Path<T>)}
           />
         </div>
       </section>

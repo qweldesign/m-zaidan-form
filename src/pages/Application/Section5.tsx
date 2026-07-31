@@ -1,10 +1,13 @@
 // src/pages/Application/Section5.tsx
 
-import type { Control } from 'react-hook-form'
+import type { UseFormRegister, FieldErrors, UseFormWatch, Control } from 'react-hook-form'
 import type { FormData } from '../../types/form'
 import PhotoSlots from '../../components/PhotoSlots'
 
 type Props = {
+  register: UseFormRegister<FormData>
+  errors: FieldErrors<FormData>
+  watch: UseFormWatch<FormData>
   control: Control<FormData>
 }
 
@@ -16,7 +19,10 @@ const PDF_DOCS = [
   { label: '直近年度の収支計画書',  field: 'docs.financialPlan'   },
 ] as const
 
-function Section5({ control }: Props) {
+function Section5({ register, errors, watch, control }: Props) {
+
+  const confirmed = watch('section5.confirmed')
+
   return (
     <section className="space-y-8">
 
@@ -51,9 +57,16 @@ function Section5({ control }: Props) {
 
                 <PhotoSlots
                   control={control}
+                  errors={errors}
                   name="section5.photos"
                   maxSlots={3}
                 />
+
+                {errors.section5?.photos && (
+                  <p className="text-red-500 text-sm mt-2">
+                    {errors.section5.photos.message as string}
+                  </p>
+                )}
 
               </td>
             </tr>
@@ -70,6 +83,7 @@ function Section5({ control }: Props) {
         <table className="block md:table w-full border-collapse">
           <tbody className="block md:table-row-group">
             {PDF_DOCS.map(({ label, field }) => {
+              const watchedFile = watch(`section5.${field}` as const)
               return (
                 <tr
                   key={field}
@@ -90,8 +104,37 @@ function Section5({ control }: Props) {
                           file:mr-4 file:px-4 file:py-2 file:rounded-lg file:border-0
                           file:bg-orange-500 file:text-white file:font-bold
                           hover:file:bg-orange-600"
+                        {...register(`section5.${field}` as const, {
+                          required: `${label}をアップロードしてください`,
+                          validate: (files) => {
+                            if (!files || files.length === 0) return true
+                            const file = files[0]
+                            if (file.size > 10 * 1024 * 1024) {
+                              return `ファイルサイズが10MBを超えています`
+                            }
+                            return true
+                          },
+                        })}
                       />
+
+                      {/* 選択済みファイル名 */}
+                      {watchedFile && watchedFile.length > 0 && (
+                        <p className="mt-2 text-sm text-orange-700 flex items-center gap-2">
+                          <span className="text-orange-400">✓</span>
+                          {watchedFile[0].name}
+                          <span className="text-slate-400">
+                            ({(watchedFile[0].size / 1024).toFixed(0)} KB)
+                          </span>
+                        </p>
+                      )}
                     </div>
+                    {errors.section5?.docs?.[field.replace('docs.', '') as keyof FormData['section5']['docs']] && (
+                      <p className="text-red-500 text-sm mt-2">
+                        {(errors.section5.docs as Record<string, { message?: string }>)[
+                          field.replace('docs.', '')
+                        ]?.message}
+                      </p>
+                    )}
                   </td>
                 </tr>
               )
@@ -106,17 +149,25 @@ function Section5({ control }: Props) {
           <input
             type="checkbox"
             className="mt-1 w-5 h-5"
+            {...register('section5.confirmed', {
+              required: '内容を確認してチェックしてください',
+            })}
           />
           <span className="leading-7 text-slate-700">
             入力内容および添付資料に誤りがないことを確認しました。
           </span>
         </label>
+        {errors.section5?.confirmed && (
+          <p className="text-red-500 text-sm mt-2 ml-9">{errors.section5.confirmed.message}</p>
+        )}
       </section>
 
       {/* 送信前の注意 */}
-      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-800 leading-7">
-        送信ボタンを押すと申請が完了します。送信後の内容変更はできませんので、今一度ご確認ください。
-      </div>
+      {confirmed && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-800 leading-7">
+          送信ボタンを押すと申請が完了します。送信後の内容変更はできませんので、今一度ご確認ください。
+        </div>
+      )}
 
     </section>
   )
