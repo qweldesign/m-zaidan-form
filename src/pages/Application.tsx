@@ -1,5 +1,6 @@
 // src/pages/Application.tsx
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { FormData as FormSchema } from '../types/form'
 import { useStepForm } from '../hooks/useStepForm'
@@ -12,8 +13,11 @@ import Section4 from './Application/Section4'
 import Section5 from './Application/Section5'
 
 function Application() {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
   const {
-    register, watch, getValues, setValue,
+    register, handleSubmit, watch, getValues, setValue,
     trigger, control, reset,
     formState: { errors },
   } = useForm<FormSchema>({
@@ -105,10 +109,11 @@ function Application() {
   })
 
   const {
-    step,
+    step, setStep,
     showResumeDialog, saveMessage,
     handleResume, handleStartOver,
     handleSave, handleNext, handleBack,
+    clearStorage,
   } = useStepForm<FormSchema>({
     totalSteps: 5,
     storageKey: 'zaidan_draft',
@@ -125,6 +130,68 @@ function Application() {
     trigger,
   })
 
+  const onSubmit = async (data: FormSchema) => {
+    setIsSubmitting(true)
+    setSubmitError(null)
+    try {
+      // ブラウザのFormDataを使ってmultipart/form-dataで送信
+      const formData = new FormData()
+
+      // セクション1〜4はJSONとして一括で渡す
+      // section5のファイルは別途appendする
+      const { section5, ...rest } = data
+
+      formData.append('section1_json', JSON.stringify(rest.section1))
+      formData.append('section2_json', JSON.stringify(rest.section2))
+      formData.append('section3_json', JSON.stringify(rest.section3))
+      formData.append('section4_json', JSON.stringify(rest.section4))
+
+      // 写真（複数）
+      if (section5.photos && section5.photos.length > 0) {
+        section5.photos.forEach((file) => {
+          formData.append('photos[]', file)
+        })
+      }
+
+      // PDF各種（単体）
+      const docFields = [
+        'regulations',
+        'activityReport',
+        'financialReport',
+        'activityPlan',
+        'financialPlan',
+      ] as const
+
+      docFields.forEach((field) => {
+        const files = section5.docs[field]
+        if (files && files.length > 0) {
+          formData.append(field, files[0])
+        }
+      })
+
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/submissions`, {
+        method: 'POST',
+        body: formData,
+        // Content-Typeは指定しない（ブラウザが自動でboundaryを付ける）
+      })
+
+      const json = await res.json()
+
+      if (!res.ok) {
+        throw new Error(json.error ?? '送信に失敗しました')
+      }
+
+      // 送信成功
+      clearStorage()
+      setStep(6) // 完了画面へ
+
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : '送信中にエラーが発生しました')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="p-3 leading-relaxed">
       {showResumeDialog && (
@@ -137,7 +204,7 @@ function Application() {
 
       <h2 className="mt-3 mb-6 font-bold text-2xl">要望申請フォーム</h2>
 
-      <form>
+      <form onSubmit={handleSubmit(onSubmit)}>
         {step === 1 && <Section1 register={register} errors={errors} watch={watch} setValue={setValue} />}
         {step === 2 && <Section2 register={register} errors={errors} watch={watch} />}
         {step === 3 && <Section3 register={register} errors={errors} watch={watch} control={control} />}
@@ -152,6 +219,12 @@ function Application() {
             <p className="text-slate-600 leading-7">
               ご登録のメールアドレスに受付完了メールをお送りしました。\n内容を確認のうえ、担当者よりご連絡いたします。
             </p>
+          </div>
+        )}
+
+        {submitError && (
+          <div className="mx-auto max-w-lg mb-4 p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm text-center">
+            {submitError}
           </div>
         )}
 
@@ -176,13 +249,13 @@ function Application() {
           )}
           {step === 5 && (
             <>
-              <button type="button" onClick={handleSave}
+              <button type="button" onClick={handleSave} disabled={isSubmitting}
                 className="block w-3xs my-6 py-3 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-center transition-colors duration-300">
                 一時保存
               </button>
-              <button type="submit"
+              <button type="submit" disabled={isSubmitting}
                 className="block w-3xs my-6 py-3 rounded bg-green-500 hover:bg-green-200 text-white hover:text-black text-center transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                送信する
+                {isSubmitting ? '送信中...' : '送信する'}
               </button>
             </>
           )}

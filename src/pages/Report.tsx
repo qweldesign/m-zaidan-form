@@ -1,5 +1,6 @@
 // src/pages/Report.tsx
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { ReportFormData } from '../types/form'
 import { useStepForm } from '../hooks/useStepForm'
@@ -10,8 +11,11 @@ import ReportSection2 from './Report/Section2'
 import ReportSection3 from './Report/Section3'
 
 function Report() {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
   const {
-    register, watch, getValues,
+    register, handleSubmit, watch, getValues,
     trigger, control, reset,
     formState: { errors },
   } = useForm<ReportFormData>({
@@ -59,10 +63,11 @@ function Report() {
   })
 
   const {
-    step,
+    step, setStep,
     showResumeDialog, saveMessage,
     handleResume, handleStartOver,
     handleSave, handleNext, handleBack,
+    clearStorage,
   } = useStepForm<ReportFormData>({
     totalSteps: 3,
     storageKey: 'zaidan_report_draft',
@@ -77,6 +82,43 @@ function Report() {
     trigger,
   })
 
+  const onSubmit = async (data: ReportFormData) => {
+    setIsSubmitting(true)
+    setSubmitError(null)
+    try {
+      const formData = new FormData()
+      const { reportSection3, ...rest } = data
+
+      formData.append('report_section1_json', JSON.stringify(rest.reportSection1))
+      formData.append('report_section2_json', JSON.stringify(rest.reportSection2))
+
+      reportSection3.photos.forEach((file) => {
+        formData.append('photos[]', file)
+      })
+      reportSection3.receipts.forEach((file) => {
+        formData.append('receipts[]', file)
+      })
+
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/reports`, {
+        method: 'POST',
+        body: formData,
+        // Content-Typeは指定しない（ブラウザが自動でboundaryを付ける）
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? '送信に失敗しました')
+
+      // 送信成功
+      clearStorage()
+      setStep(4) // 完了画面へ
+
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : '送信中にエラーが発生しました')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="p-3 leading-relaxed">
       {showResumeDialog && (
@@ -90,7 +132,7 @@ function Report() {
 
       <h2 className="mt-3 mb-6 font-bold text-2xl">完了報告フォーム</h2>
 
-      <form>
+      <form onSubmit={handleSubmit(onSubmit)}>
         {step === 1 && <ReportSection1 register={register} errors={errors} watch={watch} />}
         {step === 2 && <ReportSection2 register={register} errors={errors} watch={watch} control={control} />}
         {step === 3 && <ReportSection3 register={register} errors={errors} watch={watch} control={control} />}
@@ -114,7 +156,7 @@ function Report() {
                 戻る
               </button>
             )}
-            <button type="button" onClick={handleSave}
+            <button type="button" onClick={handleSave} disabled={isSubmitting}
               className="block w-3xs my-6 py-3 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-center transition-colors duration-300">
               一時保存
             </button>
@@ -125,9 +167,14 @@ function Report() {
               </button>
             ) : (
               <>
-                <button type="submit"
+                {submitError && (
+                  <div className="w-full text-center mb-4 p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm">
+                    {submitError}
+                  </div>
+                )}
+                <button type="submit" disabled={isSubmitting}
                   className="block w-3xs my-6 py-3 rounded bg-green-500 hover:bg-green-200 text-white hover:text-black text-center transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                  送信する
+                  {isSubmitting ? '送信中...' : '送信する'}
                 </button>
               </>
             )}
