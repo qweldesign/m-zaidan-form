@@ -3,14 +3,16 @@
 import { useForm } from 'react-hook-form'
 import type { ReportFormData } from '../types/form'
 import { useStepForm } from '../hooks/useStepForm'
+import ResumeDialog from '../components/ResumeDialog'
+import SaveToast from '../components/SaveToast'
 import ReportSection1 from './Report/Section1'
 import ReportSection2 from './Report/Section2'
 import ReportSection3 from './Report/Section3'
 
 function Report() {
   const {
-    register, watch,
-    control,
+    register, watch, getValues,
+    trigger, control, reset,
     formState: { errors },
   } = useForm<ReportFormData>({
     defaultValues: {
@@ -58,13 +60,34 @@ function Report() {
 
   const {
     step,
-    handleNext, handleBack,
-  } = useStepForm({
+    showResumeDialog, saveMessage,
+    handleResume, handleStartOver,
+    handleSave, handleNext, handleBack,
+  } = useStepForm<ReportFormData>({
     totalSteps: 3,
+    storageKey: 'zaidan_report_draft',
+    stepStorageKey: 'zaidan_report_draft_step',
+    stepFields: {
+      1: ['reportSection1'],
+      2: ['reportSection2'],
+      3: ['reportSection3'],
+    },
+    getValues,
+    reset,
+    trigger,
   })
 
   return (
     <div className="p-3 leading-relaxed">
+      {showResumeDialog && (
+        <ResumeDialog
+          onResume={handleResume}
+          onStartOver={handleStartOver}
+          note="※ 添付ファイルは再選択が必要です。"
+        />
+      )}
+      {saveMessage && <SaveToast />}
+
       <h2 className="mt-3 mb-6 font-bold text-2xl">完了報告フォーム</h2>
 
       <form>
@@ -91,6 +114,10 @@ function Report() {
                 戻る
               </button>
             )}
+            <button type="button" onClick={handleSave}
+              className="block w-3xs my-6 py-3 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-center transition-colors duration-300">
+              一時保存
+            </button>
             {step < 3 ? (
               <button type="button" onClick={handleNext}
                 className="block w-3xs my-6 py-3 rounded bg-sky-500 hover:bg-sky-200 text-white hover:text-black text-center transition-colors duration-300">

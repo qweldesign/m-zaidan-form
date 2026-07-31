@@ -3,6 +3,8 @@
 import { useForm } from 'react-hook-form'
 import type { FormData as FormSchema } from '../types/form'
 import { useStepForm } from '../hooks/useStepForm'
+import ResumeDialog from '../components/ResumeDialog'
+import SaveToast from '../components/SaveToast'
 import Section1 from './Application/Section1'
 import Section2 from './Application/Section2'
 import Section3 from './Application/Section3'
@@ -11,8 +13,8 @@ import Section5 from './Application/Section5'
 
 function Application() {
   const {
-    register, watch, setValue,
-    control,
+    register, watch, getValues, setValue,
+    trigger, control, reset,
     formState: { errors },
   } = useForm<FormSchema>({
     defaultValues: {
@@ -103,14 +105,36 @@ function Application() {
   })
 
   const {
-    step, 
-    handleNext, handleBack,
-  } = useStepForm({
+    step,
+    showResumeDialog, saveMessage,
+    handleResume, handleStartOver,
+    handleSave, handleNext, handleBack,
+  } = useStepForm<FormSchema>({
     totalSteps: 5,
+    storageKey: 'zaidan_draft',
+    stepStorageKey: 'zaidan_draft_step',
+    stepFields: {
+      1: ['section1'],
+      2: ['section2'],
+      3: ['section3'],
+      4: ['section4'],
+      5: ['section5'],
+    },
+    getValues,
+    reset,
+    trigger,
   })
 
   return (
     <div className="p-3 leading-relaxed">
+      {showResumeDialog && (
+        <ResumeDialog
+          onResume={handleResume}
+          onStartOver={handleStartOver}
+        />
+      )}
+      {saveMessage && <SaveToast />}
+
       <h2 className="mt-3 mb-6 font-bold text-2xl">要望申請フォーム</h2>
 
       <form>
@@ -140,6 +164,10 @@ function Application() {
           )}
           {step < 5 && (
             <>
+              <button type="button" onClick={handleSave}
+                className="block w-3xs my-6 py-3 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-center transition-colors duration-300">
+                一時保存
+              </button>
               <button type="button" onClick={handleNext}
                 className="block w-3xs my-6 py-3 rounded bg-sky-500 hover:bg-sky-200 text-white hover:text-black text-center transition-colors duration-300">
                 次へ
@@ -148,6 +176,10 @@ function Application() {
           )}
           {step === 5 && (
             <>
+              <button type="button" onClick={handleSave}
+                className="block w-3xs my-6 py-3 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-center transition-colors duration-300">
+                一時保存
+              </button>
               <button type="submit"
                 className="block w-3xs my-6 py-3 rounded bg-green-500 hover:bg-green-200 text-white hover:text-black text-center transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
                 送信する
