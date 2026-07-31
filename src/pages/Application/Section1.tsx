@@ -1,12 +1,13 @@
 // src/pages/Application/Section1.tsx
 
-import type { UseFormRegister, FieldErrors, UseFormWatch } from 'react-hook-form'
+import type { UseFormRegister, FieldErrors, UseFormWatch, UseFormSetValue } from 'react-hook-form'
 import type { FormData } from '../../types/form'
 
 type Props = {
   register: UseFormRegister<FormData>
   errors: FieldErrors<FormData>
   watch: UseFormWatch<FormData>
+  setValue: UseFormSetValue<FormData>
 }
 
 const APPLICATION_ROUTES = [
@@ -20,7 +21,47 @@ const APPLICATION_ROUTES = [
   '他団体からの紹介',
 ]
 
-function Section1({ register, errors, watch }: Props) {
+function Section1({ register, errors, watch, setValue }: Props) {
+
+  // 郵便番号から住所を検索する関数
+  const fetchAddressByPostalCode = async (
+    postalCode: string,
+    setValue: UseFormSetValue<FormData>,
+  ) => {
+    const cleaned = postalCode.replace(/[^0-9]/g, '')
+    if (cleaned.length !== 7) return
+
+    try {
+      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleaned}`)
+      const json = await res.json()
+      if (json.results && json.results.length > 0) {
+        const { address1, address2, address3 } = json.results[0]
+        setValue('section1.teamAddress', `${address1}${address2}${address3}`, {
+          shouldValidate: true,
+        })
+      } else {
+        setValue('section1.teamAddress', '', { shouldValidate: true })
+        alert('該当する住所が見つかりませんでした。')
+      }
+    } catch {
+      alert('住所の取得に失敗しました。手動で入力してください。')
+    }
+  }
+
+  // 「代表者と同じ」チェックボックスの状態を監視
+  const sameAsRep = watch('section1.sameAsRepresentative')
+
+  // 「代表者と同じ」がONになったとき、代表者の値を担当者にコピー
+  const handleSameAsRepresentative = (checked: boolean) => {
+    setValue('section1.sameAsRepresentative', checked)
+    if (checked) {
+      const values = watch()
+      setValue('section1.contactName', values.section1.representativeName)
+      setValue('section1.contactNameKana', values.section1.representativeNameKana)
+      setValue('section1.contactPhone', values.section1.representativePhone)
+      setValue('section1.contactEmail', values.section1.representativeEmail)
+    }
+  }
 
   return (
     <section className="space-y-8">
@@ -109,6 +150,7 @@ function Section1({ register, errors, watch }: Props) {
                   />
                   <button
                     type="button"
+                    onClick={() => fetchAddressByPostalCode(watch('section1.teamPostalCode'), setValue)}
                     className="px-4 py-3 rounded-lg bg-sky-500 text-white text-sm font-bold hover:bg-sky-600 transition whitespace-nowrap"
                   >
                     住所を検索
@@ -507,6 +549,8 @@ function Section1({ register, errors, watch }: Props) {
           <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
             <input
               type="checkbox"
+              onChange={(e) => handleSameAsRepresentative(e.target.checked)}
+              checked={sameAsRep}
             />
             代表者と同じ
           </label>
@@ -525,6 +569,7 @@ function Section1({ register, errors, watch }: Props) {
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400"
                   {...register('section1.contactName', {
                     required: '担当者名を入力してください',
+                    disabled: sameAsRep,
                   })}
                 />
                 {errors.section1?.contactName && (
@@ -544,6 +589,7 @@ function Section1({ register, errors, watch }: Props) {
                   {...register('section1.contactNameKana', {
                     required: 'フリガナを入力してください',
                     pattern: { value: /^[ァ-ヶー\s]+$/, message: 'カタカナで入力してください' },
+                    disabled: sameAsRep,
                   })}
                 />
                 {errors.section1?.contactNameKana && (
@@ -563,6 +609,7 @@ function Section1({ register, errors, watch }: Props) {
                   {...register('section1.contactPhone', {
                     required: '電話番号を入力してください',
                     pattern: { value: /^[0-9-+().\s]+$/, message: '正しい電話番号を入力してください' },
+                    disabled: sameAsRep,
                   })}
                 />
                 {errors.section1?.contactPhone && (
@@ -582,6 +629,7 @@ function Section1({ register, errors, watch }: Props) {
                   {...register('section1.contactEmail', {
                     required: 'メールアドレスを入力してください',
                     pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: '正しいメールアドレスを入力してください' },
+                    disabled: sameAsRep,
                   })}
                 />
                 {errors.section1?.contactEmail && (

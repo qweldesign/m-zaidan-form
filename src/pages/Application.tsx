@@ -11,7 +11,7 @@ import Section5 from './Application/Section5'
 
 function Application() {
   const {
-    register, watch,
+    register, watch, setValue,
     control,
     formState: { errors },
   } = useForm<FormSchema>({
@@ -114,7 +114,7 @@ function Application() {
       <h2 className="mt-3 mb-6 font-bold text-2xl">要望申請フォーム</h2>
 
       <form>
-        {step === 1 && <Section1 register={register} errors={errors} watch={watch} />}
+        {step === 1 && <Section1 register={register} errors={errors} watch={watch} setValue={setValue} />}
         {step === 2 && <Section2 register={register} errors={errors} watch={watch} />}
         {step === 3 && <Section3 register={register} errors={errors} watch={watch} control={control} />}
         {step === 4 && <Section4 register={register} errors={errors} watch={watch} />}
