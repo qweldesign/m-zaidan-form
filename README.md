@@ -6,43 +6,152 @@
 
 ## ディレクトリ構成
 
-```
-
-public/
-└── images/
-    └── m-zaidan_logo.png
-src/
-├── components/
-│   ├── BudgetTable.tsx
-│   ├── ParticipantCount.tsx
-│   ├── PhotoSlots.tsx
-│   ├── ReceiptUploader.tsx
-│   ├── ResumeDialog.tsx
-│   └── SaveToast.tsx
-├── hooks/
-│   └── useStepForm.ts
-├── pages/
-│   ├── Application/
-│   │   ├── Section1.tsx
-│   │   ├── Section2.tsx
-│   │   ├── Section3.tsx
-│   │   ├── Section4.tsx
-│   │   └── Section5.tsx
-│   ├── Report/
-│   │   ├── Section1.tsx
-│   │   ├── Section2.tsx
-│   │   └── Section3.tsx
-│   ├── Application.tsx
-│   ├── Entrance.tsx
-│   └── Report.tsx
-├── types/
-│   └── form.ts
-├── App.tsx
-├── index.css
-├── index.tsx
-└── router.tsx
+### API
 
 ```
+api/
+├── index.php ← エントリーポイント（ルーティング）
+├── config.php ← DB接続・定数定義
+├── auth.php ← 認証ミドルウェア
+├── router.php ← ルーター
+├── handlers/
+│ ├── SubmissionPost.php ← POST /submissions
+│ ├── SubmissionList.php ← GET /submissions
+│ ├── SubmissionGet.php ← GET /submissions/:id
+│ ├── SubmissionPatch.php ← PATCH /submissions/:id
+│ ├── SubmissionExport.php ← GET /submissions/export/csv
+│ ├── SubmissionGetByToken.php ← GET /submissions/edit/:token
+│ ├── SubmissionPutByToken.php ← PUT /submissions/edit/:token
+│ ├── FileServe.php ← GET /api/files
+│ ├── ReportPost.php ← POST /reports
+│ ├── ReportList.php ← GET /reports
+│ ├── ReportGet.php ← GET /reports/:id
+│ ├── ReportPatch.php ← PATCH /reports/:id
+│ ├── ReportGetByToken.php ← GET /reports/edit/:token
+│ └── ReportPutByToken.php ← PUT /reports/edit/:token
+├── helpers/
+│ ├── Response.php ← JSON/CSVレスポンスヘルパー
+│ ├── Validator.php ← バリデーション
+│ └── Mailer.php ← メール送信
+└── uploads/ ← ファイルアップロード先
+  └── .htaccess ← PHP実行禁止
+```
+
+### データベース
+
+```
+db/
+├── m-zaidan.sqlite ← データベース本体（.gitignore で除外）
+├── schema.sql      ← CREATE文
+└── seed.sql        ← INSERT文 (サンプル)
+```
+
+### フォーム
+
+```
+form/
+├── public/
+│   └── images/
+│      └── m-zaidan_logo.png
+└── src/
+    ├── components/
+    │   ├── BudgetTable.tsx
+    │   ├── ParticipantCount.tsx
+    │   ├── PhotoSlots.tsx
+    │   ├── ReceiptUploader.tsx
+    │   ├── ResumeDialog.tsx
+    │   └── SaveToast.tsx
+    ├── hooks/
+    │   └── useStepForm.ts
+    ├── pages/
+    │   ├── Application/
+    │   │   ├── Section1.tsx
+    │   │   ├── Section2.tsx
+    │   │   ├── Section3.tsx
+    │   │   ├── Section4.tsx
+    │   │   └── Section5.tsx
+    │   ├── Report/
+    │   │   ├── Section1.tsx
+    │   │   ├── Section2.tsx
+    │   │   └── Section3.tsx
+    │   ├── Application.tsx
+    │   ├── Entrance.tsx
+    │   └── Report.tsx
+    ├── types/
+    │   └── form.ts
+    ├── App.tsx
+    ├── index.css
+    ├── index.tsx
+    └── router.tsx
+```
+
+---
+
+## API エンドポイント
+
+### 申請者用（認証不要）
+
+| メソッド | パス | 用途 |
+|---|---|---|
+| POST | /api/submissions | 申請データ新規登録 |
+| POST | /api/reports | 完了報告新規登録 |
+| GET | /api/submissions/edit/:token | トークンで申請データ取得 |
+| PUT | /api/submissions/edit/:token | トークンで申請データ上書き更新 |
+| GET | /api/reports/edit/:token | トークンで完了報告データ取得 |
+| PUT | /api/reports/edit/:token | トークンで完了報告データ上書き更新 |
+
+### スタッフ用（Bearer トークン認証必要）
+
+| メソッド | パス | 用途 |
+|---|---|---|
+| GET | /api/submissions | 申請一覧取得 |
+| GET | /api/submissions/:id | 個別申請取得 |
+| PATCH | /api/submissions/:id | 申請内容修正 |
+| GET | /api/submissions/export/csv | CSV エクスポート |
+| GET | /api/reports | 完了報告一覧取得 |
+| GET | /api/reports/:id | 個別完了報告取得 |
+| PATCH | /api/reports/:id | 完了報告内容修正 |
+| GET | /api/files | ファイル取得 |
+
+### GET /api/submissions クエリパラメータ
+
+| パラメータ | デフォルト | 説明 |
+|---|---|---|
+| status | なし | `審査前` / `審査中` / `承認` / `否決` / `対象外` |
+| keyword | なし | 団体名・事業名で部分一致検索 |
+| activity_category | なし | `ボランティア活動` / `スポーツ活動` / `その他市民活動` |
+| year | なし | 申請年（例：`2025`） |
+| include_deleted | `0` | `1` を指定すると論理削除済みを含む |
+| order_by | `id` | `id` / `created_at` / `team_name` / `activity_category` / `start_date` / `status` / `grant_request_amount` |
+| order | `ASC` | `ASC` / `DESC` |
+| limit | `50` | 最大200 |
+| offset | `0` | オフセット |
+
+### GET /api/reports クエリパラメータ
+
+| パラメータ | デフォルト | 説明 |
+|---|---|---|
+| status | なし | `確認前` / `要修正` / `確認済` |
+| keyword | なし | 団体名・事業名で部分一致検索 |
+| activity_category | なし | `ボランティア活動` / `スポーツ活動` / `その他市民活動` |
+| year | なし | 実施年（actual_start_date から計算、例：`2025`） |
+| include_deleted | `0` | `1` を指定すると論理削除済みを含む |
+| order_by | `id` | `id` / `created_at` / `team_name` / `activity_category` / `actual_start_date` / `grant_request_amount` |
+| order | `ASC` | `ASC` / `DESC` |
+| limit | `50` | 最大200 |
+| offset | `0` | オフセット |
+
+### トークンエンドポイントの仕様
+
+`edit_token` は申請送信時に自動生成され、申請完了メールに記載されます。  
+完了報告フォームの `edit_token` は申請の `edit_token` と共用です。  
+
+| 条件 | 動作 |
+|---|---|
+| `GET /api/submissions/edit/:token` で 404 | 無効なトークン |
+| `PUT /api/submissions/edit/:token` で status が `審査前` 以外 | 403 エラー（編集不可） |
+| `GET /api/reports/edit/:token` で 404 | 完了報告未提出（申請データを初期値として新規作成） |
+| `PUT /api/reports/edit/:token` で status が `確認前` 以外 | 403 エラー（編集不可） |
 
 ---
 
@@ -142,6 +251,123 @@ src/
 |---|---|---|
 | trg_submissions_updated_at | submissions | UPDATE時に`updated_at`を自動更新 |
 | trg_reports_updated_at | reports | UPDATE時に`updated_at`を自動更新 |
+
+---
+
+## レンタルサーバーへの配置
+
+```
+公開ディレクトリ/
+├── index.html   ← form/dist/ の中身をここに配置
+├── assets/
+├── api/
+└── ...
+db/              ← 公開ディレクトリの外（直接アクセス不可）
+uploads/         ← 公開ディレクトリの外（直接アクセス不可）
+```
+
+---
+
+## セットアップ
+
+### 1. 環境変数の設定
+
+`api/.env.example` をコピーして `api/.env` を作成し、各値を設定してください。
+
+```bash
+cp api/.env.example api/.env
+```
+
+```
+APP_URL=
+SMTP_HOST=
+SMTP_USER=
+SMTP_PASS=
+STAFF_TOKEN=
+FOUNDATION_EMAIL=
+FOUNDATION_NAME=
+```
+
+`STAFF_TOKEN` は以下のコマンドで生成してください。
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### 2. データベースの初期化
+
+```bash
+sqlite3 db/m-zaidan.sqlite < db/schema.sql
+```
+
+### 3. フォームのビルド
+
+```bash
+cd form
+npm install
+npm run build
+```
+
+`form/dist/` の中身を公開ディレクトリに配置してください。
+
+### 4. Composer のインストール
+
+```bash
+cd api
+composer install
+```
+
+---
+
+## フォーム設計メモ
+
+### 要望申請フォーム（Application.tsx）
+
+- React Hook Form で状態管理（`useForm` は `Application.tsx` に1つ）
+- 各 Section に `register` / `errors` / `watch` / `setValue` / `control` を props で渡す
+- LocalStorage に途中保存（同一端末・同一ブラウザ・通常モードのみ）
+- STEP 移動時・明示的な保存ボタン押下時に自動保存
+- フォームアクセス時に保存データを検出 → 再開確認ダイアログを表示
+- 送信完了後に LocalStorage をクリア
+- ファイル（写真・PDF）は LocalStorage に保存不可のため再開時に再選択が必要
+- LocalStorageキー：`zaidan_draft` / `zaidan_draft_step`
+
+### STEP 構成（申請フォーム）
+
+| STEP | 内容 |
+|---|---|
+| 1 | 申請団体の概要（団体情報・助成歴・代表者・担当者） |
+| 2 | 申請事業について（基本情報・参加人数・事業内容・共催） |
+| 3 | 収支予算書（収入・支出・自動計算） |
+| 4 | 団体の活動について（設立背景・活動内容・実績PR） |
+| 5 | 添付資料（活動写真・PDF 5種・確認チェック） |
+
+### 完了報告フォーム（Report.tsx）
+
+- React Hook Form で状態管理（`useForm` は `Report.tsx` に1つ）
+- 各 ReportSection に `register` / `errors` / `watch` / `control` を props で渡す
+- LocalStorage に途中保存（申請フォームと同じ仕組み）
+- 送信完了後に LocalStorage をクリア
+- ファイルは LocalStorage に保存不可のため再開時に再選択が必要
+- LocalStorageキー：`zaidan_report_draft` / `zaidan_report_draft_step`
+
+### STEP 構成（完了報告フォーム）
+
+| STEP | 内容 |
+|---|---|
+| 1 | 申請団体の概要（団体名・担当者情報） |
+| 2 | 申請事業について（事業名・実施期間・場所・参加人数・収支決算報告） |
+| 3 | 添付資料（活動写真1〜2枚・領収書複数枚・確認チェック） |
+
+### 郵便番号自動補完
+
+zipcloud API（`https://zipcloud.ibsnet.co.jp/api/search`）を使用。  
+市区町村までの自動補完。番地・建物名は手入力。  
+
+### メール送信
+
+- PHPMailer + レンタルサーバーの SMTP を使用
+- キャリアメール（docomo・au・softbank）は受信できない場合あり（フォーム上に注意書きを表示）
 
 ---
 
