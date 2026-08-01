@@ -3,6 +3,13 @@
 .env.*
 !.env.example
 
+# SQLite
+*.sqlite
+
+# Uploads
+uploads/*
+!uploads/.htaccess
+
 # Composer
 vendor/
 
