@@ -1,0 +1,400 @@
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+require_once __DIR__ . '/../../helpers/Validator.php';
+
+class ValidatorTest extends TestCase {
+
+  //
+  // validateSubmission
+  //
+
+  public function test_全項目が揃っていればエラーなし(): void {
+    $body = [
+      'section1_json' => json_encode([
+        'teamName'            => 'ギャラリーはりいしゃ運営委員会',
+        'teamAddress'         => '福井県福井市蒲生町1-42',
+        'representativeName'  => '伊藤 大悟',
+        'representativeEmail' => 'hariisha@example.com',
+        'contactName'         => '伊藤 大悟',
+        'contactEmail'        => 'hariisha@example.com',
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント',
+        'startDate'   => '2025-06-01',
+        'endDate'     => '2025-06-30',
+      ]),
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertEmpty($errors);
+  }
+
+  public function test_section1_jsonが空ならエラーが返る(): void {
+    $body = [
+      'section1_json' => '{}',
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント',
+        'startDate'   => '2025-06-01',
+        'endDate'     => '2025-06-30',
+      ]),
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertNotEmpty($errors);
+    $this->assertContains('団体名称は必須です', $errors);
+    $this->assertContains('所在地は必須です', $errors);
+    $this->assertContains('代表者名は必須です', $errors);
+    $this->assertContains('代表者メールアドレスが不正です', $errors);
+  }
+
+  public function test_section2_jsonが空ならエラーが返る(): void {
+    $body = [
+      'section1_json' => json_encode([
+        'teamName'            => 'ギャラリーはりいしゃ運営委員会',
+        'teamAddress'         => '福井県福井市蒲生町1-42',
+        'representativeName'  => '伊藤 大悟',
+        'representativeEmail' => 'hariisha@example.com',
+        'contactName'         => '伊藤 大悟',
+        'contactEmail'        => 'hariisha@example.com',
+      ]),
+      'section2_json' => '{}',  // 空
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertCount(3, $errors);
+    $this->assertContains('事業名称は必須です', $errors);
+    $this->assertContains('開始日は必須です', $errors);
+    $this->assertContains('終了日は必須です', $errors);
+  }
+
+  public function test_不正なJSONが渡された場合エラーが返る(): void {
+    $body = [
+      'section1_json' => 'invalid-json',
+      'section2_json' => 'invalid-json',
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    // json_decode が null を返すため全項目がエラーになる
+    $this->assertNotEmpty($errors);
+    $this->assertContains('団体名称は必須です', $errors);
+    $this->assertContains('事業名称は必須です', $errors);
+  }
+
+  public function test_teamNameが空ならエラーが返る(): void {
+    $body = [
+      'section1_json' => json_encode([
+        'teamName'            => '',
+        'teamAddress'         => '福井県福井市蒲生町1-42',
+        'representativeName'  => '伊藤 大悟',
+        'representativeEmail' => 'hariisha@example.com',
+        'contactName'         => '伊藤 大悟',
+        'contactEmail'        => 'hariisha@example.com',
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント',
+        'startDate'   => '2025-06-01',
+        'endDate'     => '2025-06-30',
+      ]),
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('団体名称は必須です', $errors);
+  }
+
+  public function test_representativeEmailが空ならエラーが返る(): void {
+    $body = [
+      'section1_json' => json_encode([
+        'teamName'            => 'ギャラリーはりいしゃ運営委員会',
+        'teamAddress'         => '福井県福井市蒲生町1-42',
+        'representativeName'  => '伊藤 大悟',
+        'representativeEmail' => '',  // 空文字
+        'contactName'         => '伊藤 大悟',
+        'contactEmail'        => '',  // 空文字
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント',
+        'startDate'   => '2025-06-01',
+        'endDate'     => '2025-06-30',
+      ]),
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertCount(2, $errors);
+    $this->assertContains('代表者メールアドレスが不正です', $errors);
+  }
+
+  public function test_representativeEmailが不正な形式ならエラーが返る(): void {
+    $body = [
+      'section1_json' => json_encode([
+        'teamName'            => 'ギャラリーはりいしゃ運営委員会',
+        'teamAddress'         => '福井県福井市蒲生町1-42',
+        'representativeName'  => '伊藤 大悟',
+        'representativeEmail' => 'not-an-email',
+        'contactName'         => '伊藤 大悟',
+        'contactEmail'        => 'not-an-email',
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント',
+        'startDate'   => '2025-06-01',
+        'endDate'     => '2025-06-30',
+      ]),
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertCount(2, $errors);
+    $this->assertContains('代表者メールアドレスが不正です', $errors);
+  }
+
+  public function test_contactEmailが空ならエラーが返る(): void {
+    $body = [
+      'section1_json' => json_encode([
+        'teamName'            => 'ギャラリーはりいしゃ運営委員会',
+        'teamAddress'         => '福井県福井市蒲生町1-42',
+        'representativeName'  => '伊藤 大悟',
+        'representativeEmail' => 'hariisha@example.com',
+        'contactName'         => '伊藤 大悟',
+        'contactEmail'        => '',  // 空
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント',
+        'startDate'   => '2025-06-01',
+        'endDate'     => '2025-06-30',
+      ]),
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('担当者メールアドレスが不正です', $errors);
+  }
+
+  public function test_contactEmailが不正な形式ならエラーが返る(): void {
+    $body = [
+      'section1_json' => json_encode([
+        'teamName'            => 'ギャラリーはりいしゃ運営委員会',
+        'teamAddress'         => '福井県福井市蒲生町1-42',
+        'representativeName'  => '伊藤 大悟',
+        'representativeEmail' => 'hariisha@example.com',
+        'contactName'         => '伊藤 大悟',
+        'contactEmail'        => 'not-an-email',  // 不正
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント',
+        'startDate'   => '2025-06-01',
+        'endDate'     => '2025-06-30',
+      ]),
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('担当者メールアドレスが不正です', $errors);
+  }
+
+  public function test_複数項目が空なら複数エラーが返る(): void {
+    $body = [
+      'section1_json' => json_encode([
+        'teamName'            => '',
+        'teamAddress'         => '',
+        'representativeName'  => '',
+        'representativeEmail' => '',
+        'contactName'         => '',
+        'contactEmail'        => '',
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '',
+        'startDate'   => '',
+        'endDate'     => '',
+      ]),
+    ];
+
+    $errors = Validator::validateSubmission($body);
+
+    $this->assertCount(9, $errors);
+  }
+
+  //
+  // validateReport
+  //
+
+  public function test_レポート_全項目が揃っていればエラーなし(): void {
+    // $_FILES をモック
+    $_FILES = [
+      'photos' => [
+        'error'    => [UPLOAD_ERR_OK],
+        'tmp_name' => ['/tmp/test_photo.jpg'],
+        'name'     => ['photo.jpg'],
+      ],
+      'receipts' => [
+        'error'    => [UPLOAD_ERR_OK],
+        'tmp_name' => ['/tmp/test_receipt.pdf'],
+        'name'     => ['receipt.pdf'],
+      ],
+    ];
+
+    $body = [
+      'report_section1_json' => json_encode([
+        'teamName'    => 'ギャラリーはりいしゃ運営委員会',
+        'contactName' => '伊藤 大悟',
+        'contactEmail'=> 'hariisha@example.com',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => 'ギャラリーはりいしゃ',
+        'income'          => ['grantRequest' => 100000],
+      ]),
+    ];
+
+    $errors = Validator::validateReport($body);
+
+    $this->assertEmpty($errors);
+  }
+
+  public function test_レポート_contactEmailが不正な形式ならエラーが返る(): void {
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
+      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
+    ];
+
+    $body = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'invalid-email',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => 'ギャラリーはりいしゃ',
+        'income'          => ['grantRequest' => 100000],
+      ]),
+    ];
+
+    $errors = Validator::validateReport($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('担当者メールアドレスが不正です', $errors);
+  }
+
+  public function test_レポート_grantRequestが0ならエラーが返る(): void {
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
+      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
+    ];
+
+    $body = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => 'ギャラリーはりいしゃ',
+        'income'          => ['grantRequest' => 0],
+      ]),
+    ];
+
+    $errors = Validator::validateReport($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('助成金要望額は必須です', $errors);
+  }
+
+  public function test_レポート_grantRequestが負の値ならエラーが返る(): void {
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
+      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
+    ];
+
+    $body = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => '福井市民会館',
+        'income'          => ['grantRequest' => -1000],  // 負の値
+      ]),
+    ];
+
+    $errors = Validator::validateReport($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('助成金要望額は必須です', $errors);
+  }
+
+  public function test_レポート_写真がなければエラーが返る(): void {
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_NO_FILE], 'tmp_name' => [''], 'name' => ['']],
+      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
+    ];
+
+    $body = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => 'ギャラリーはりいしゃ',
+        'income'          => ['grantRequest' => 100000],
+      ]),
+    ];
+
+    $errors = Validator::validateReport($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('活動実施写真は必須です', $errors);
+  }
+
+  public function test_レポート_領収書がなければエラーが返る(): void {
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_OK],      'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
+      'receipts' => ['error' => [UPLOAD_ERR_NO_FILE], 'tmp_name' => [''],           'name' => ['']],
+    ];
+
+    $body = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => '福井市民会館',
+        'income'          => ['grantRequest' => 100000],
+      ]),
+    ];
+
+    $errors = Validator::validateReport($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('領収書は必須です', $errors);
+  }
+
+}
