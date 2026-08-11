@@ -13,6 +13,11 @@ uploads/*
 # Composer
 vendor/
 
+# PHPUnit
+api/.phpunit.result.cache
+api/tests/test.sqlite
+api/tests/uploads/
+
 # Logs
 logs
 *.log
