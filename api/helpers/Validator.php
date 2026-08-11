@@ -13,6 +13,11 @@ class Validator {
       || !filter_var($s1['representativeEmail'], FILTER_VALIDATE_EMAIL)) {
       $errors[] = '代表者メールアドレスが不正です';
     }
+    if (empty($s1['contactName']))        $errors[] = '担当者名は必須です';
+    if (empty($s1['contactEmail'])
+      || !filter_var($s1['contactEmail'], FILTER_VALIDATE_EMAIL)) {
+      $errors[] = '担当者メールアドレスが不正です';
+    }
     if (empty($s2['projectName']))        $errors[] = '事業名称は必須です';
     if (empty($s2['startDate']))          $errors[] = '開始日は必須です';
     if (empty($s2['endDate']))            $errors[] = '終了日は必須です';

@@ -90,8 +90,8 @@ function handlePost(): void {
     $db->commit();
 
     // メール送信
-    $applicantEmail = $s1['representativeEmail'] ?? '';
-    $applicantName  = $s1['representativeName']  ?? '';
+    $applicantEmail = $s1['contactEmail'] ?? '';
+    $applicantName  = $s1['contactName']  ?? '';
     Mailer::sendConfirmation($applicantEmail, $applicantName, $submissionId, $editToken);
     Mailer::sendNotification($submissionId, $applicantName);
 
