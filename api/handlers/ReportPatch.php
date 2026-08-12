@@ -11,7 +11,10 @@ function handleReportPatch(int $id): void {
     return;
   }
 
-  $body = json_decode(file_get_contents('php://input'), true);
+  $input = isset($GLOBALS['_TEST_INPUT'])
+    ? $GLOBALS['_TEST_INPUT']
+    : file_get_contents('php://input');
+  $body = json_decode($input, true);
   if (!$body) {
     Response::error('リクエストボディが不正です', 400);
     return;
@@ -55,20 +58,6 @@ function handleReportPatch(int $id): void {
         $sets[]                  = "deleted_at = :deleted_at";
         $params[':deleted_at']   = null;
       }
-
-      // 変更ログを記録
-      $logStmt = $db->prepare('
-        INSERT INTO submission_logs (submission_id, field_name, old_value, new_value)
-        VALUES (:submission_id, :field_name, :old_value, :new_value)
-      ');
-      $logStmt->execute([
-        ':submission_id' => $id,
-        ':field_name'    => 'report.' . $field,
-        ':old_value'     => $current[$field] ?? null,
-        ':new_value'     => is_array($value)
-          ? json_encode($value, JSON_UNESCAPED_UNICODE)
-          : $value,
-      ]);
     }
 
     if (empty($sets)) {
