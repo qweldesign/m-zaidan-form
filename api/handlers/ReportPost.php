@@ -1,7 +1,9 @@
 <?php
 
 require_once __DIR__ . '/../helpers/Validator.php';
-require_once __DIR__ . '/../helpers/Mailer.php';
+if (!class_exists('Mailer')) {
+  require_once __DIR__ . '/../helpers/Mailer.php';
+}
 
 function handleReportPost(): void {
   $db   = getDB();
@@ -22,13 +24,26 @@ function handleReportPost(): void {
   $editToken = $body['submission_token'] ?? bin2hex(random_bytes(16));
 
   // submission_tokenが申請DBに存在するか確認（オプション・セキュリティ強化）
-  if (isset($body['submission_token'])) {
-    $checkStmt = $db->prepare('SELECT id FROM submissions WHERE edit_token = :token');
+  if (isset($body['submission_token']) && $body['submission_token'] !== '') {
+    $editToken = $body['submission_token'];
+
+    // 申請DBに存在するか確認
+    $checkStmt = $db->prepare('SELECT id FROM submissions WHERE edit_token = :token AND is_deleted = 0');
     $checkStmt->execute([':token' => $editToken]);
     if (!$checkStmt->fetch()) {
       Response::error('無効なトークンです', 400);
       return;
     }
+
+    // 重複提出チェック
+    $dupStmt = $db->prepare('SELECT id FROM reports WHERE edit_token = :token');
+    $dupStmt->execute([':token' => $editToken]);
+    if ($dupStmt->fetch()) {
+      Response::error('この申請の完了報告はすでに提出されています。', 409);
+      return;
+    }
+  } else {
+    $editToken = bin2hex(random_bytes(16));
   }
 
   $db->beginTransaction();
