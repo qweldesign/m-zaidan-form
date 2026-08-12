@@ -1,7 +1,9 @@
 <?php
 
 require_once __DIR__ . '/../helpers/Validator.php';
-require_once __DIR__ . '/../helpers/Mailer.php';
+if (!class_exists('Mailer')) {
+  require_once __DIR__ . '/../helpers/Mailer.php';
+}
 
 function handlePost(): void {
   $db = getDB();
