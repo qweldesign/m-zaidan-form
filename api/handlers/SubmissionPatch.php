@@ -11,7 +11,10 @@ function handlePatch(int $id): void {
     return;
   }
 
-  $body = json_decode(file_get_contents('php://input'), true);
+  $input = isset($GLOBALS['_TEST_INPUT'])
+    ? $GLOBALS['_TEST_INPUT']
+    : file_get_contents('php://input');
+  $body = json_decode($input, true);
   if (!$body) {
     Response::error('リクエストボディが不正です', 400);
     return;
