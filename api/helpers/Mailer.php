@@ -143,4 +143,12 @@ TEXT;
       error_log('財団への完了報告通知メール送信失敗: ' . $e->getMessage());
     }
   }
+
+  public static function sendStatusNotification(string $to, string $name, string $subject, string $body): void {
+    $mail = self::createMailer();
+    $mail->addAddress($to, $name);
+    $mail->Subject = $subject;
+    $mail->Body    = $body;
+    $mail->send();
+  }
 }

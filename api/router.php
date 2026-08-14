@@ -36,6 +36,14 @@ function route(): void {
     }
   }
 
+  // POST /api/submissions/:id/notify
+  if ($method === 'POST' && preg_match('#^/api/submissions/(\d+)/notify$#', $path, $matches)) {
+    require_once __DIR__ . '/handlers/SubmissionNotify.php';
+    requireAuth();
+    handleSubmissionNotify((int)$matches[1]);
+    return;
+  }
+
   // /api/submissions/export/csv
   if ($method === 'GET' && preg_match('#^/api/submissions/export/csv$#', $path)) {
     require_once __DIR__ . '/handlers/SubmissionExport.php';
@@ -94,6 +102,14 @@ function route(): void {
     require_once __DIR__ . '/handlers/ReportPatch.php';
     requireAuth();
     handleReportPatch((int)$matches[1]);
+    return;
+  }
+
+  // POST /api/reports/:id/notify
+  if ($method === 'POST' && preg_match('#^/api/reports/(\d+)/notify$#', $path, $matches)) {
+    require_once __DIR__ . '/handlers/ReportNotify.php';
+    requireAuth();
+    handleReportNotify((int)$matches[1]);
     return;
   }
 
