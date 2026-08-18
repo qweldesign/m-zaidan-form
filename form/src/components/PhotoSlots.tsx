@@ -9,23 +9,23 @@ type Props<T extends FieldValues> = {
   name: Path<T>
   maxSlots: number
   required?: boolean
+  isEditMode?: boolean
 }
 
-function PhotoSlots<T extends FieldValues>({ control, errors, name, maxSlots, required = false }: Props<T>) {
+function PhotoSlots<T extends FieldValues>({ control, errors, name, maxSlots, isEditMode = false }: Props<T>) {
   return (
     <>
       <Controller
         name={name}
         control={control}
         defaultValue={[] as any}
+        // PhotoSlots の rules を変更
         rules={{
           validate: (files: File[]) => {
-            if (required && (!files || files.length === 0)) return '写真を1枚以上アップロードしてください'
-            if (files && files.length > maxSlots) return `写真は最大${maxSlots}枚までです`
-            if (files) {
-              for (const file of files) {
-                if (file.size > 5 * 1024 * 1024) return `${file.name} のファイルサイズが5MBを超えています`
-              }
+            if (!isEditMode && (!files || files.length === 0)) return '写真を1枚以上アップロードしてください'
+            if (files && files.length > 3) return '写真は最大3枚までです'
+            for (const file of files ?? []) {
+              if (file.size > 5 * 1024 * 1024) return `${file.name} のファイルサイズが5MBを超えています`
             }
             return true
           },

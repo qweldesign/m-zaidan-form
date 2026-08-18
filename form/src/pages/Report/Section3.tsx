@@ -10,6 +10,7 @@ type Props = {
   errors: FieldErrors<ReportFormData>
   watch: UseFormWatch<ReportFormData>
   control: Control<ReportFormData>
+  isEditMode?: boolean
 }
 
 function ReportSection3({ register, errors, watch, control }: Props) {
@@ -49,7 +50,7 @@ function ReportSection3({ register, errors, watch, control }: Props) {
                   errors={errors}
                   name="reportSection3.photos"
                   maxSlots={2}
-                  required
+                  isEditMode
                 />
 
                 {errors.reportSection3?.photos && (
@@ -83,6 +84,7 @@ function ReportSection3({ register, errors, watch, control }: Props) {
                   control={control}
                   errors={errors}
                   name="reportSection3.receipts"
+                  isEditMode
                 />
               </td>
             </tr>

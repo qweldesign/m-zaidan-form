@@ -7,9 +7,10 @@ type Props<T extends FieldValues> = {
   control: Control<T>
   errors: FieldErrors<T>
   name: Path<T>
+  isEditMode?: boolean
 }
 
-function ReceiptUploader<T extends FieldValues>({ control, errors, name }: Props<T>) {
+function ReceiptUploader<T extends FieldValues>({ control, errors, name, isEditMode = false }: Props<T>) {
   return (
     <>
       <Controller
@@ -18,11 +19,9 @@ function ReceiptUploader<T extends FieldValues>({ control, errors, name }: Props
         defaultValue={[] as any}
         rules={{
           validate: (files: File[]) => {
-            if (!files || files.length === 0) return '領収書をアップロードしてください'
-            for (const file of files) {
-              if (file.size > 10 * 1024 * 1024) {
-                return `${file.name} のファイルサイズが10MBを超えています`
-              }
+            if (!isEditMode && (!files || files.length === 0)) return '領収書をアップロードしてください'
+            for (const file of files ?? []) {
+              if (file.size > 10 * 1024 * 1024) return `${file.name} のファイルサイズが10MBを超えています`
             }
             return true
           },

@@ -246,7 +246,7 @@ function Report({ editToken }: Props) {
       <form onSubmit={handleSubmit(onSubmit)}>
         {step === 1 && <ReportSection1 register={register} errors={errors} watch={watch} />}
         {step === 2 && <ReportSection2 register={register} errors={errors} watch={watch} control={control} />}
-        {step === 3 && <ReportSection3 register={register} errors={errors} watch={watch} control={control} />}
+        {step === 3 && <ReportSection3 register={register} errors={errors} watch={watch} control={control} isEditMode={isEditMode} />}
         {step === 4 && (
           <div className="text-center py-16 space-y-6">
             <div className="text-5xl">✅</div>

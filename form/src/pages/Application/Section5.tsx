@@ -9,6 +9,7 @@ type Props = {
   errors: FieldErrors<FormData>
   watch: UseFormWatch<FormData>
   control: Control<FormData>
+  isEditMode?: boolean
 }
 
 const PDF_DOCS = [
@@ -19,7 +20,7 @@ const PDF_DOCS = [
   { label: '直近年度の収支計画書',  field: 'docs.financialPlan'   },
 ] as const
 
-function Section5({ register, errors, watch, control }: Props) {
+function Section5({ register, errors, watch, control, isEditMode }: Props) {
 
   const confirmed = watch('section5.confirmed')
 
@@ -60,6 +61,7 @@ function Section5({ register, errors, watch, control }: Props) {
                   errors={errors}
                   name="section5.photos"
                   maxSlots={3}
+                  isEditMode
                 />
 
                 {errors.section5?.photos && (
@@ -105,7 +107,7 @@ function Section5({ register, errors, watch, control }: Props) {
                           file:bg-orange-500 file:text-white file:font-bold
                           hover:file:bg-orange-600"
                         {...register(`section5.${field}` as const, {
-                          required: `${label}をアップロードしてください`,
+                          required: isEditMode ? false : `${label}をアップロードしてください`,
                           validate: (files) => {
                             if (!files || files.length === 0) return true
                             const file = files[0]
