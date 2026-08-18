@@ -51,18 +51,18 @@ function handleReportPutByToken(string $token): void {
     ');
 
     $updateStmt->execute([
-      ':team_name'            => $s1['teamName']        ?? '',
-      ':contact_name'         => $s1['contactName']     ?? '',
-      ':contact_email'        => $s1['contactEmail']    ?? '',
-      ':contact_phone'        => $s1['contactPhone']    ?? '',
-      ':project_name'         => $s2['projectName']     ?? '',
-      ':actual_start_date'    => $s2['actualStartDate'] ?? '',
-      ':actual_end_date'      => $s2['actualEndDate']   ?? '',
-      ':actual_venue'         => $s2['actualVenue']     ?? '',
-      ':grant_request_amount' => (int)($s2['income']['grantRequest'] ?? 0),
+      ':team_name'            => $s1['teamName']        ?? $current['team_name'],
+      ':contact_name'         => $s1['contactName']     ?? $current['contact_name'],
+      ':contact_email'        => $s1['contactEmail']    ?? $current['contact_email'],
+      ':contact_phone'        => $s1['contactPhone']    ?? $current['contact_phone'],
+      ':project_name'         => $s2['projectName']     ?? $current['project_name'],
+      ':actual_start_date'    => $s2['actualStartDate'] ?? $current['actual_start_date'],
+      ':actual_end_date'      => $s2['actualEndDate']   ?? $current['actual_end_date'],
+      ':actual_venue'         => $s2['actualVenue']     ?? $current['actual_venue'],
+      ':grant_request_amount' => (int)($s2['income']['grantRequest'] ?? $current['grant_request_amount']),
       ':total_expense_amount' => $totalExpense,
       ':grant_usage_amount'   => $totalGrantUsage,
-      ':report_section1_json' => $body['report_section1_json'] ?? '{}',
+      ':report_section1_json' => $body['report_section1_json'] ?? $current['report_section1_json'],
       ':report_section2_json' => json_encode($section2, JSON_UNESCAPED_UNICODE),
       ':token'                => $token,
     ]);
