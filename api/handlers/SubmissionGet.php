@@ -3,8 +3,7 @@
 function handleGet(int $id): void {
   $db   = getDB();
   $stmt = $db->prepare('
-    SELECT * FROM submissions
-    WHERE id = :id AND is_deleted = 0
+    SELECT * FROM submissions WHERE id = :id
   ');
   $stmt->execute([':id' => $id]);
   $row = $stmt->fetch();

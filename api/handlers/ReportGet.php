@@ -2,7 +2,7 @@
 
 function handleReportGet(int $id): void {
   $db   = getDB();
-  $stmt = $db->prepare('SELECT * FROM reports WHERE id = :id AND is_deleted = 0');
+  $stmt = $db->prepare('SELECT * FROM reports WHERE id = :id');
   $stmt->execute([':id' => $id]);
   $row = $stmt->fetch();
 
