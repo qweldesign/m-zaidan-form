@@ -1,6 +1,8 @@
 <?php
 
-require_once __DIR__ . '/../helpers/Mailer.php';
+if (!class_exists('Mailer')) {
+  require_once __DIR__ . '/../helpers/Mailer.php';
+}
 
 function handleSubmissionNotify(int $id): void {
   $db = getDB();
@@ -77,6 +79,23 @@ function handleSubmissionNotify(int $id): void {
     return;
   }
 
-  Mailer::sendStatusNotification($toEmail, $toName, $subjects[$status], $bodies[$status]);
+  // デスクトップアプリから送信されたPDF（審査中への変更時、任意）を添付する
+  $input = isset($GLOBALS['_TEST_INPUT'])
+    ? $GLOBALS['_TEST_INPUT']
+    : file_get_contents('php://input');
+  $requestBody = json_decode($input ?: '', true) ?? [];
+
+  $attachment = null;
+  if (!empty($requestBody['pdf']) && is_string($requestBody['pdf'])) {
+    $pdfContent = base64_decode($requestBody['pdf'], true);
+    if ($pdfContent !== false) {
+      $attachment = [
+        'content'  => $pdfContent,
+        'filename' => "submission_{$id}.pdf",
+      ];
+    }
+  }
+
+  Mailer::sendStatusNotification($toEmail, $toName, $subjects[$status], $bodies[$status], $attachment);
   Response::success(['sent' => true]);
 }

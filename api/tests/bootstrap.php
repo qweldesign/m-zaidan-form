@@ -67,6 +67,19 @@ class Mailer {
   public static function sendReportNotification(int $id, string $applicantName): void {
     // テスト時は何もしない
   }
+
+  // テストから呼び出し内容を検証できるよう記録する
+  public static array $statusNotifications = [];
+
+  public static function sendStatusNotification(string $to, string $name, string $subject, string $body, ?array $attachment = null): void {
+    self::$statusNotifications[] = [
+      'to'         => $to,
+      'name'       => $name,
+      'subject'    => $subject,
+      'body'       => $body,
+      'attachment' => $attachment,
+    ];
+  }
 }
 
 // Response のテスト用オーバーライド（exit しない）

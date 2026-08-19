@@ -144,11 +144,14 @@ TEXT;
     }
   }
 
-  public static function sendStatusNotification(string $to, string $name, string $subject, string $body): void {
+  public static function sendStatusNotification(string $to, string $name, string $subject, string $body, ?array $attachment = null): void {
     $mail = self::createMailer();
     $mail->addAddress($to, $name);
     $mail->Subject = $subject;
     $mail->Body    = $body;
+    if ($attachment !== null) {
+      $mail->addStringAttachment($attachment['content'], $attachment['filename']);
+    }
     $mail->send();
   }
 }
