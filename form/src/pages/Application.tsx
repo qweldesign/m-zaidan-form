@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import type { FieldErrors } from 'react-hook-form'
 import type { FormData as FormSchema } from '../types/form'
-import { useStepForm } from '../hooks/useStepForm'
+import { useStepForm, getStepWithError } from '../hooks/useStepForm'
 import ResumeDialog from '../components/ResumeDialog'
 import SaveToast from '../components/SaveToast'
 import Section1 from './Application/Section1'
@@ -21,6 +22,16 @@ function Application({ editToken }: Props) {
   const [editBlocked, setEditBlocked] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [validationNotice, setValidationNotice] = useState<string | null>(null)
+
+  // ステップとフォームの各セクションの対応（送信時のエラー誘導・一時保存の再検証で共有する）
+  const stepFieldsMap: Record<number, (keyof FormSchema)[]> = {
+    1: ['section1'],
+    2: ['section2'],
+    3: ['section3'],
+    4: ['section4'],
+    5: ['section5'],
+  }
 
   const {
     register, handleSubmit, watch, getValues, setValue,
@@ -116,7 +127,7 @@ function Application({ editToken }: Props) {
 
   const {
     step, setStep,
-    showResumeDialog, saveMessage,
+    showResumeDialog, saveMessage, resumeWarning,
     handleResume, handleStartOver,
     handleSave, handleNext, handleBack,
     clearStorage,
@@ -124,21 +135,27 @@ function Application({ editToken }: Props) {
     totalSteps: 5,
     storageKey: 'zaidan_draft',
     stepStorageKey: 'zaidan_draft_step',
-    stepFields: {
-      1: ['section1'],
-      2: ['section2'],
-      3: ['section3'],
-      4: ['section4'],
-      5: ['section5'],
-    },
+    stepFields: stepFieldsMap,
     getValues,
     reset,
     trigger,
   })
 
+  // フォーム全体のバリデーションに失敗した場合（非表示のステップに不備がある場合を含む）、
+  // 該当ステップへ移動してエラーを可視化する。これが無いと送信ボタンが無反応に見えてしまう。
+  const onInvalid = (formErrors: FieldErrors<FormSchema>) => {
+    const invalidStep = getStepWithError(stepFieldsMap, formErrors)
+    if (invalidStep && invalidStep !== step) {
+      setStep(invalidStep)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    setValidationNotice('入力内容に不備がある項目があります。ステップの内容をご確認のうえ、再度送信してください。')
+  }
+
   const onSubmit = async (data: FormSchema) => {
     setIsSubmitting(true)
     setSubmitError(null)
+    setValidationNotice(null)
     try {
       // ブラウザのFormDataを使ってmultipart/form-dataで送信
       const formData = new FormData()
@@ -269,7 +286,13 @@ function Application({ editToken }: Props) {
 
       <h2 className="mt-3 mb-6 font-bold text-2xl">要望申請フォーム</h2>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      {resumeWarning && (
+        <div className="mx-auto max-w-lg mb-4 p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm text-center">
+          保存されていた内容に未入力・不備の項目がありました。このステップの内容をご確認ください。
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
         {step === 1 && <Section1 register={register} errors={errors} watch={watch} setValue={setValue} />}
         {step === 2 && <Section2 register={register} errors={errors} watch={watch} />}
         {step === 3 && <Section3 register={register} errors={errors} watch={watch} control={control} />}
@@ -287,6 +310,12 @@ function Application({ editToken }: Props) {
                 : 'ご登録のメールアドレスに受付完了メールをお送りしました。\n内容を確認のうえ、担当者よりご連絡いたします。'
               }
             </p>
+          </div>
+        )}
+
+        {validationNotice && (
+          <div className="mx-auto max-w-lg mb-4 p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm text-center">
+            {validationNotice}
           </div>
         )}
 

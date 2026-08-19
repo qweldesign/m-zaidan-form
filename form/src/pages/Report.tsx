@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import type { FieldErrors } from 'react-hook-form'
 import type { ReportFormData } from '../types/form'
-import { useStepForm } from '../hooks/useStepForm'
+import { useStepForm, getStepWithError } from '../hooks/useStepForm'
 import ResumeDialog from '../components/ResumeDialog'
 import SaveToast from '../components/SaveToast'
 import ReportSection1 from './Report/Section1'
@@ -19,6 +20,14 @@ function Report({ editToken }: Props) {
   const [editBlocked, setEditBlocked] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [validationNotice, setValidationNotice] = useState<string | null>(null)
+
+  // ステップとフォームの各セクションの対応（送信時のエラー誘導・一時保存の再検証で共有する）
+  const stepFieldsMap: Record<number, (keyof ReportFormData)[]> = {
+    1: ['reportSection1'],
+    2: ['reportSection2'],
+    3: ['reportSection3'],
+  }
 
   const {
     register, handleSubmit, watch, getValues,
@@ -70,7 +79,7 @@ function Report({ editToken }: Props) {
 
   const {
     step, setStep,
-    showResumeDialog, saveMessage,
+    showResumeDialog, saveMessage, resumeWarning,
     handleResume, handleStartOver,
     handleSave, handleNext, handleBack,
     clearStorage,
@@ -78,19 +87,27 @@ function Report({ editToken }: Props) {
     totalSteps: 3,
     storageKey: 'zaidan_report_draft',
     stepStorageKey: 'zaidan_report_draft_step',
-    stepFields: {
-      1: ['reportSection1'],
-      2: ['reportSection2'],
-      3: ['reportSection3'],
-    },
+    stepFields: stepFieldsMap,
     getValues,
     reset,
     trigger,
   })
 
+  // フォーム全体のバリデーションに失敗した場合（非表示のステップに不備がある場合を含む）、
+  // 該当ステップへ移動してエラーを可視化する。これが無いと送信ボタンが無反応に見えてしまう。
+  const onInvalid = (formErrors: FieldErrors<ReportFormData>) => {
+    const invalidStep = getStepWithError(stepFieldsMap, formErrors)
+    if (invalidStep && invalidStep !== step) {
+      setStep(invalidStep)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    setValidationNotice('入力内容に不備がある項目があります。ステップの内容をご確認のうえ、再度送信してください。')
+  }
+
   const onSubmit = async (data: ReportFormData) => {
     setIsSubmitting(true)
     setSubmitError(null)
+    setValidationNotice(null)
     try {
       const formData = new FormData()
       const { reportSection3, ...rest } = data
@@ -243,7 +260,13 @@ function Report({ editToken }: Props) {
 
       <h2 className="mt-3 mb-6 font-bold text-2xl">完了報告フォーム</h2>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      {resumeWarning && (
+        <div className="mx-auto max-w-lg mb-4 p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm text-center">
+          保存されていた内容に未入力・不備の項目がありました。このステップの内容をご確認ください。
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
         {step === 1 && <ReportSection1 register={register} errors={errors} watch={watch} />}
         {step === 2 && <ReportSection2 register={register} errors={errors} watch={watch} control={control} />}
         {step === 3 && <ReportSection3 register={register} errors={errors} watch={watch} control={control} isEditMode={isEditMode} />}
@@ -281,6 +304,11 @@ function Report({ editToken }: Props) {
               </button>
             ) : (
               <>
+                {validationNotice && (
+                  <div className="w-full text-center mb-4 p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm">
+                    {validationNotice}
+                  </div>
+                )}
                 {submitError && (
                   <div className="w-full text-center mb-4 p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm">
                     {submitError}

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useStepForm } from '../../hooks/useStepForm'
+import { useStepForm, getStepWithError } from '../../hooks/useStepForm'
 
 // window.scrollTo のモック
 vi.stubGlobal('scrollTo', vi.fn())
@@ -68,25 +68,48 @@ describe('useStepForm', () => {
       expect(mocks.reset).toHaveBeenCalledWith(savedData)
     })
 
-    it('保存されたSTEPに戻る', () => {
+    it('保存内容が全て有効なら保存されたSTEPに戻る', async () => {
       localStorage.setItem('test_draft',      JSON.stringify({}))
       localStorage.setItem('test_draft_step', '3')
 
       const mocks      = createMocks()
       const { result } = renderHook(() => useStepForm(defaultOptions(mocks)))
 
-      act(() => { result.current.handleResume() })
+      await act(async () => { await result.current.handleResume() })
 
       expect(result.current.step).toBe(3)
+      expect(result.current.resumeWarning).toBe(false)
     })
 
-    it('showResumeDialogがfalseになる', () => {
+    it('保存内容に不備があれば該当ステップへ誘導し、resumeWarningがtrueになる', async () => {
+      localStorage.setItem('test_draft',      JSON.stringify({}))
+      localStorage.setItem('test_draft_step', '3')
+
+      const mocks = createMocks()
+      // section1 のバリデーションだけ失敗させる
+      mocks.trigger = vi.fn().mockImplementation((fields: unknown) => {
+        if (Array.isArray(fields) && fields.includes('section1')) {
+          return Promise.resolve(false)
+        }
+        return Promise.resolve(true)
+      })
+
+      const { result } = renderHook(() => useStepForm(defaultOptions(mocks)))
+
+      await act(async () => { await result.current.handleResume() })
+
+      // 保存されていたSTEP3ではなく、不備のあるSTEP1へ誘導される
+      expect(result.current.step).toBe(1)
+      expect(result.current.resumeWarning).toBe(true)
+    })
+
+    it('showResumeDialogがfalseになる', async () => {
       localStorage.setItem('test_draft', JSON.stringify({}))
 
       const mocks      = createMocks()
       const { result } = renderHook(() => useStepForm(defaultOptions(mocks)))
 
-      act(() => { result.current.handleResume() })
+      await act(async () => { await result.current.handleResume() })
 
       expect(result.current.showResumeDialog).toBe(false)
     })
@@ -145,6 +168,27 @@ describe('useStepForm', () => {
       act(() => { result.current.handleSave() })
 
       expect(result.current.saveMessage).toBe(true)
+    })
+
+    it('resumeWarningがfalseにリセットされる', async () => {
+      localStorage.setItem('test_draft',      JSON.stringify({}))
+      localStorage.setItem('test_draft_step', '1')
+
+      const mocks = createMocks()
+      mocks.trigger = vi.fn().mockImplementation((fields: unknown) => {
+        if (Array.isArray(fields) && fields.includes('section1')) {
+          return Promise.resolve(false)
+        }
+        return Promise.resolve(true)
+      })
+
+      const { result } = renderHook(() => useStepForm(defaultOptions(mocks)))
+
+      await act(async () => { await result.current.handleResume() })
+      expect(result.current.resumeWarning).toBe(true)
+
+      act(() => { result.current.handleSave() })
+      expect(result.current.resumeWarning).toBe(false)
     })
   })
 
@@ -230,6 +274,33 @@ describe('useStepForm', () => {
 
       expect(localStorage.getItem('test_draft')).toBeNull()
       expect(localStorage.getItem('test_draft_step')).toBeNull()
+    })
+  })
+
+  // ============================================================
+  // getStepWithError
+  // ============================================================
+
+  describe('getStepWithError', () => {
+    const stepFields = { 1: ['section1'], 2: ['section2'], 3: ['section5'] }
+
+    it('エラーを含む最初のステップ番号を返す', () => {
+      const errors = { section2: { projectName: { type: 'required' } } }
+
+      expect(getStepWithError(stepFields, errors)).toBe(2)
+    })
+
+    it('複数ステップにエラーがある場合、番号の小さい方を返す', () => {
+      const errors = {
+        section1: { teamName: { type: 'required' } },
+        section5: { confirmed: { type: 'required' } },
+      }
+
+      expect(getStepWithError(stepFields, errors)).toBe(1)
+    })
+
+    it('エラーが無ければnullを返す', () => {
+      expect(getStepWithError(stepFields, {})).toBeNull()
     })
   })
 
