@@ -1,11 +1,55 @@
 <?php
 
+// 絞り込み条件はReportList.php（一覧取得API）と同じクエリパラメータに
+// 対応しており、アプリの一覧画面で現在適用されているフィルター条件のまま
+// CSVを出力できる（ページング用のlimit/offsetのみ対象外で、該当する全件を出力する）
 function handleReportExport(): void {
   $db = getDB();
 
-  $status  = $_GET['status']  ?? null;
-  $where   = $status ? 'WHERE status = :status AND is_deleted = 0' : 'WHERE is_deleted = 0';
-  $params  = $status ? [':status' => $status] : [];
+  // クエリパラメータ（ReportList.phpと同一の絞り込み条件）
+  $status           = $_GET['status']            ?? null;
+  $keyword          = $_GET['keyword']            ?? null;
+  $activityCategory = $_GET['activity_category']  ?? null;
+  $year             = $_GET['year']               ?? null;
+  $includeDeleted   = $_GET['include_deleted']    ?? '0';
+  $orderBy          = $_GET['order_by']           ?? 'id';
+  $order            = strtoupper($_GET['order'] ?? 'ASC') === 'ASC' ? 'ASC' : 'DESC';
+
+  // 許可するカラムのみORDER BYに使う
+  $allowedOrderBy = ['id', 'created_at', 'team_name', 'activity_category', 'actual_start_date', 'grant_request_amount'];
+  if (!in_array($orderBy, $allowedOrderBy)) {
+    $orderBy = 'id';
+  }
+
+  $where  = [];
+  $params = [];
+
+  if ($status) {
+    $where[]           = 'status = :status';
+    $params[':status'] = $status;
+  }
+
+  if ($keyword) {
+    $where[]        = '(team_name LIKE :kw OR project_name LIKE :kw2)';
+    $params[':kw']  = "%{$keyword}%";
+    $params[':kw2'] = "%{$keyword}%";
+  }
+
+  if ($activityCategory) {
+    $where[]                      = 'activity_category = :activity_category';
+    $params[':activity_category'] = $activityCategory;
+  }
+
+  if ($year) {
+    $where[]         = "strftime('%Y', actual_start_date) = :year";
+    $params[':year'] = $year;
+  }
+
+  if ($includeDeleted !== '1') {
+    $where[] = 'is_deleted = 0';
+  }
+
+  $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
   $stmt = $db->prepare("
     SELECT
@@ -15,8 +59,8 @@ function handleReportExport(): void {
       grant_request_amount, total_expense_amount, grant_usage_amount,
       created_at
     FROM reports
-    {$where}
-    ORDER BY id ASC
+    {$whereClause}
+    ORDER BY {$orderBy} {$order}
   ");
   $stmt->execute($params);
   $rows = $stmt->fetchAll();
