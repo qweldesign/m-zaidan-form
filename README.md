@@ -19,6 +19,7 @@ api/
 │ ├── SubmissionList.php ← GET /submissions
 │ ├── SubmissionGet.php ← GET /submissions/:id
 │ ├── SubmissionPatch.php ← PATCH /submissions/:id
+│ ├── SubmissionNotify.php ← POST /submissions/:id/notify
 │ ├── SubmissionExport.php ← GET /submissions/export/csv
 │ ├── SubmissionGetByToken.php ← GET /submissions/edit/:token
 │ ├── SubmissionPutByToken.php ← PUT /submissions/edit/:token
@@ -27,12 +28,15 @@ api/
 │ ├── ReportList.php ← GET /reports
 │ ├── ReportGet.php ← GET /reports/:id
 │ ├── ReportPatch.php ← PATCH /reports/:id
+│ ├── ReportNotify.php ← POST /reports/:id/notify
+│ ├── ReportExport.php ← GET /reports/export/csv
 │ ├── ReportGetByToken.php ← GET /reports/edit/:token
 │ └── ReportPutByToken.php ← PUT /reports/edit/:token
 ├── helpers/
 │ ├── Response.php ← JSON/CSVレスポンスヘルパー
 │ ├── Validator.php ← バリデーション
-│ └── Mailer.php ← メール送信
+│ ├── Mailer.php ← メール送信
+│ └── RequestBody.php ← PUTリクエスト（multipart/form-data）の手動パース
 └── uploads/ ← ファイルアップロード先
   └── .htaccess ← PHP実行禁止
 ```
@@ -105,12 +109,15 @@ form/
 | メソッド | パス | 用途 |
 |---|---|---|
 | GET | /api/submissions | 申請一覧取得 |
-| GET | /api/submissions/:id | 個別申請取得 |
+| GET | /api/submissions/:id | 個別申請取得（論理削除済みも取得できる。下記「個別取得の仕様」を参照） |
 | PATCH | /api/submissions/:id | 申請内容修正 |
-| GET | /api/submissions/export/csv | CSV エクスポート |
+| POST | /api/submissions/:id/notify | ステータス変更メール送信（body に `{ pdf: base64文字列 }` を渡すとメールにPDFを添付できる。任意） |
+| GET | /api/submissions/export/csv | CSV エクスポート（`section1_json`/`section2_json`/`section4_json` の詳細項目を含む。クエリパラメータは下記「CSVエクスポートのクエリパラメータ」を参照） |
 | GET | /api/reports | 完了報告一覧取得 |
-| GET | /api/reports/:id | 個別完了報告取得 |
+| GET | /api/reports/:id | 個別完了報告取得（論理削除済みも取得できる。下記「個別取得の仕様」を参照） |
 | PATCH | /api/reports/:id | 完了報告内容修正 |
+| POST | /api/reports/:id/notify | ステータス変更メール送信 |
+| GET | /api/reports/export/csv | CSV エクスポート（基本項目のみ。JSON項目の展開は行わない） |
 | GET | /api/files | ファイル取得 |
 
 ### GET /api/submissions クエリパラメータ
@@ -141,6 +148,16 @@ form/
 | limit | `50` | 最大200 |
 | offset | `0` | オフセット |
 
+### CSVエクスポートのクエリパラメータ
+
+`GET /api/submissions/export/csv` ・ `GET /api/reports/export/csv` は、それぞれ `GET /api/submissions` ・ `GET /api/reports`（一覧取得API）と同じ絞り込み・並び順のクエリパラメータ（`status` / `keyword` / `activity_category` / `year` / `include_deleted` / `order_by` / `order`）に対応している。アプリの一覧画面で現在絞り込まれているデータのみをそのままCSV出力できる。`limit` / `offset` には対応しておらず、絞り込み条件に該当する全件を出力する。
+
+出力する列は一覧取得APIとは異なる（上記「API エンドポイント」の表を参照）。申請CSVは `team_name` 等の基本項目に加えて `section1_json` / `section2_json` / `section4_json` の詳細項目を展開して含むが、完了報告CSVは基本項目のみで、配列項目（応募経緯・設立目的など複数選択の項目）は「、」区切りの文字列としてCSVに出力する。
+
+### 個別取得の仕様
+
+`GET /api/submissions/:id` ・ `GET /api/reports/:id` はいずれも `is_deleted` による絞り込みを**行わない**（論理削除済みのデータも通常どおり取得できる）。これは、アプリの一覧画面で「削除済みを含む」表示にした際に該当行をクリックして詳細を閲覧し、復元（`PATCH` で `is_deleted: 0` に戻す）できるようにするための意図的な仕様。一覧取得・CSVエクスポートは `include_deleted=1` を指定しない限り `is_deleted = 0` のもののみに絞り込まれる。
+
 ### トークンエンドポイントの仕様
 
 `edit_token` は申請送信時に自動生成され、申請完了メールに記載されます。  
@@ -161,6 +178,8 @@ form/
 - 新しいファイルを添付した場合：既存のファイルに追加する（申請PDF・完了報告の写真／領収書のいずれも同様）
 
 そのため、同じ書類フィールド（例：`docs.regulations`）へ複数回ファイルを追加すると、そのフィールドの値は文字列1件ではなく配列（複数件）になる。詳細は後述の DB スキーマの節を参照。
+
+**実装メモ**：PHPは `POST` メソッドの場合のみ `multipart/form-data` のボディを自動的に `$_POST` / `$_FILES` へパースする。`PUT` では自動パースされないため、`api/helpers/RequestBody.php` の `resolveRequestBody()` が `$_POST` / `$_FILES` が空の場合に `php://input` を手動でパースするフォールバックを提供している。この2つのPUTハンドラを変更する際は、必ず `resolveRequestBody()` 経由でリクエストボディを取得すること（直接 `$_POST` / `$_FILES` を参照すると、実際のPUTリクエストでは常に空になる）。
 
 ---
 
