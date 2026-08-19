@@ -342,4 +342,119 @@ class SubmissionPutByTokenTest extends TestCase {
     $this->assertEquals('無効なトークンです', $response['error']);
   }
 
+  //
+  // 回帰テスト：実際のPUTリクエスト（multipart/form-data）を模したケース
+  //
+  // PHPはPUTメソッドの場合 $_POST / $_FILES を自動的にパースしないため、
+  // このテストでは $_POST / $_FILES をあえて空のままにし、resolveRequestBody() の
+  // 手動パース経路（$GLOBALS['_TEST_RAW_BODY']）を通してハンドラを呼び出す。
+  // $_POST / $_FILES を直接セットする他のテストでは、この本番環境特有の不具合は
+  // 検出できない。
+  //
+
+  private function buildMultipart(array $fields, array $files = []): array {
+    $boundary = 'TestBoundary' . uniqid();
+    $lines    = [];
+
+    foreach ($fields as $name => $value) {
+      $lines[] = "--{$boundary}\r\n";
+      $lines[] = "Content-Disposition: form-data; name=\"{$name}\"\r\n\r\n";
+      $lines[] = "{$value}\r\n";
+    }
+
+    // $files は [name, filename, type, content] のリスト
+    foreach ($files as [$name, $filename, $type, $content]) {
+      $lines[] = "--{$boundary}\r\n";
+      $lines[] = "Content-Disposition: form-data; name=\"{$name}\"; filename=\"{$filename}\"\r\n";
+      $lines[] = "Content-Type: {$type}\r\n\r\n";
+      $lines[] = $content . "\r\n";
+    }
+
+    $lines[] = "--{$boundary}--\r\n";
+
+    return [implode('', $lines), $boundary];
+  }
+
+  protected function tearDownRawBodyOverride(): void {
+    unset($GLOBALS['_TEST_RAW_BODY'], $GLOBALS['_TEST_CONTENT_TYPE']);
+  }
+
+  public function test_正常系_実際のPUTリクエストで収支予算の変更がDBに反映される(): void {
+    $submission = $this->createSubmission();
+
+    $_POST  = [];
+    $_FILES = [];
+
+    [$raw, $boundary] = $this->buildMultipart([
+      'section1_json' => json_encode(['teamName' => 'ギャラリーはりいしゃ運営委員会']),
+      'section2_json' => json_encode(['projectName' => '地域交流イベント']),
+      'section3_json' => json_encode([
+        'income'   => ['grantRequest' => 300000],
+        'expenses' => [['id' => '1', 'subject' => '会場費', 'amount' => 90000, 'grantUsage' => 90000, 'memo' => '']],
+        'budgetNote' => '実際のPUTリクエストによる変更後の備考',
+      ]),
+      'section4_json' => json_encode([]),
+    ]);
+    $GLOBALS['_TEST_RAW_BODY']     = $raw;
+    $GLOBALS['_TEST_CONTENT_TYPE'] = "multipart/form-data; boundary={$boundary}";
+
+    try {
+      $response = $this->callHandlePutByToken($submission['edit_token']);
+      $this->assertEquals('申請内容を更新しました', $response['message']);
+
+      $stmt = $this->db->prepare('SELECT section3_json, grant_request_amount, total_expense_amount FROM submissions WHERE id = :id');
+      $stmt->execute([':id' => $submission['id']]);
+      $row = $stmt->fetch();
+
+      $section3 = json_decode($row['section3_json'], true);
+      $this->assertEquals(300000, $section3['income']['grantRequest']);
+      $this->assertEquals('実際のPUTリクエストによる変更後の備考', $section3['budgetNote']);
+      $this->assertEquals(300000, $row['grant_request_amount']);
+      $this->assertEquals(90000, $row['total_expense_amount']);
+    } finally {
+      $this->tearDownRawBodyOverride();
+    }
+  }
+
+  public function test_正常系_実際のPUTリクエストで添付ファイルが追加される(): void {
+    $submission = $this->createSubmission();
+
+    $_POST  = [];
+    $_FILES = [];
+
+    [$raw, $boundary] = $this->buildMultipart(
+      [
+        'section1_json' => json_encode(['teamName' => 'ギャラリーはりいしゃ運営委員会']),
+        'section2_json' => json_encode(['projectName' => '地域交流イベント']),
+        'section3_json' => json_encode(['income' => ['grantRequest' => 100000], 'expenses' => []]),
+        'section4_json' => json_encode([]),
+      ],
+      [
+        ['regulations', 'kiyaku.pdf', 'application/pdf', '%PDF-1.4 dummy regulations'],
+        ['photos[]',    'p1.jpg',     'image/jpeg',      'dummy-photo-bytes'],
+      ]
+    );
+    $GLOBALS['_TEST_RAW_BODY']     = $raw;
+    $GLOBALS['_TEST_CONTENT_TYPE'] = "multipart/form-data; boundary={$boundary}";
+
+    try {
+      $this->callHandlePutByToken($submission['edit_token']);
+
+      $stmt = $this->db->prepare('SELECT section5_json FROM submissions WHERE id = :id');
+      $stmt->execute([':id' => $submission['id']]);
+      $row = $stmt->fetch();
+
+      $section5 = json_decode($row['section5_json'], true);
+      $this->assertNotEmpty($section5['docs']['regulations'] ?? null);
+      $this->assertNotEmpty($section5['photos'] ?? null);
+
+      // 実際にファイルが物理的に保存されていることも確認する
+      $regPath = UPLOAD_DIR . preg_replace('#^uploads/#', '', (is_array($section5['docs']['regulations']) ? $section5['docs']['regulations'][0] : $section5['docs']['regulations']));
+      $this->assertFileExists($regPath);
+      $this->assertStringContainsString('dummy regulations', file_get_contents($regPath));
+    } finally {
+      $this->tearDownRawBodyOverride();
+    }
+  }
+
 }

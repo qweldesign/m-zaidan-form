@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../helpers/RequestBody.php';
+
 function handleReportPutByToken(string $token): void {
   $db   = getDB();
   $stmt = $db->prepare('SELECT * FROM reports WHERE edit_token = :token AND is_deleted = 0');
@@ -17,19 +19,27 @@ function handleReportPutByToken(string $token): void {
     return;
   }
 
-  $body = $_POST;
+  // PHPはPUTメソッドの場合、multipart/form-dataのボディを自動的に
+  // $_POST / $_FILES へパースしないため、手動で取得する
+  [$body, $files] = resolveRequestBody();
 
   $db->beginTransaction();
   try {
     $s1 = json_decode($body['report_section1_json'] ?? '{}', true);
-    $s2 = json_decode($body['report_section2_json'] ?? '{}', true) ?? [];
+
+    // report_section2_json が送られてこなかった／不正なJSONだった場合は、
+    // ほとんどのフィールドが空になってしまうのを防ぐため既存データにフォールバックする
+    // （テキスト項目は送信内容で上書きする、という通常時の仕様はそのまま維持される）
+    $currentSection2 = json_decode($current['report_section2_json'], true) ?? [];
+    $s2 = isset($body['report_section2_json'])
+      ? (json_decode($body['report_section2_json'], true) ?? $currentSection2)
+      : $currentSection2;
 
     // 写真・領収書は section2 の JSON では送られてこないため、
     // 既存データを引き継いだうえで新規アップロード分を追加マージする
-    $currentSection2  = json_decode($current['report_section2_json'], true) ?? [];
     $s2['photos']     = $currentSection2['photos']   ?? [];
     $s2['receipts']   = $currentSection2['receipts'] ?? [];
-    $s2 = mergeReportUploadedFiles($s2);
+    $s2 = mergeReportUploadedFiles($s2, $files);
 
     $expenses        = $s2['expenses']  ?? [];
     $totalExpense    = array_sum(array_column($expenses, 'amount'));
@@ -42,6 +52,7 @@ function handleReportPutByToken(string $token): void {
         contact_email        = :contact_email,
         contact_phone        = :contact_phone,
         project_name         = :project_name,
+        activity_category    = :activity_category,
         actual_start_date    = :actual_start_date,
         actual_end_date      = :actual_end_date,
         actual_venue         = :actual_venue,
@@ -59,6 +70,7 @@ function handleReportPutByToken(string $token): void {
       ':contact_email'        => $s1['contactEmail']    ?? $current['contact_email'],
       ':contact_phone'        => $s1['contactPhone']    ?? $current['contact_phone'],
       ':project_name'         => $s2['projectName']     ?? $current['project_name'],
+      ':activity_category'    => $s2['activityCategory'] ?? $current['activity_category'],
       ':actual_start_date'    => $s2['actualStartDate'] ?? $current['actual_start_date'],
       ':actual_end_date'      => $s2['actualEndDate']   ?? $current['actual_end_date'],
       ':actual_venue'         => $s2['actualVenue']     ?? $current['actual_venue'],
@@ -79,32 +91,32 @@ function handleReportPutByToken(string $token): void {
   }
 }
 
-function mergeReportUploadedFiles(array $section2): array {
+function mergeReportUploadedFiles(array $section2, array $files): array {
   $year = date('Y');
   $dir  = UPLOAD_DIR . $year . '/';
 
   if (!is_dir($dir)) mkdir($dir, 0755, true);
 
   // 写真の追加
-  if (!empty($_FILES['photos'])) {
+  if (!empty($files['photos'])) {
     if (!isset($section2['photos'])) $section2['photos'] = [];
-    foreach ($_FILES['photos']['tmp_name'] as $i => $tmpName) {
-      if ($_FILES['photos']['error'][$i] !== UPLOAD_ERR_OK) continue;
-      $ext      = strtolower(pathinfo($_FILES['photos']['name'][$i], PATHINFO_EXTENSION));
+    foreach ($files['photos']['tmp_name'] as $i => $tmpName) {
+      if ($files['photos']['error'][$i] !== UPLOAD_ERR_OK) continue;
+      $ext      = strtolower(pathinfo($files['photos']['name'][$i], PATHINFO_EXTENSION));
       $filename = uniqid('report_photo_') . '.' . $ext;
-      move_uploaded_file($tmpName, $dir . $filename);
+      moveUploadedOrTempFile($tmpName, $dir . $filename);
       $section2['photos'][] = "uploads/{$year}/{$filename}";
     }
   }
 
   // 領収書の追加
-  if (!empty($_FILES['receipts'])) {
+  if (!empty($files['receipts'])) {
     if (!isset($section2['receipts'])) $section2['receipts'] = [];
-    foreach ($_FILES['receipts']['tmp_name'] as $i => $tmpName) {
-      if ($_FILES['receipts']['error'][$i] !== UPLOAD_ERR_OK) continue;
-      $ext      = strtolower(pathinfo($_FILES['receipts']['name'][$i], PATHINFO_EXTENSION));
+    foreach ($files['receipts']['tmp_name'] as $i => $tmpName) {
+      if ($files['receipts']['error'][$i] !== UPLOAD_ERR_OK) continue;
+      $ext      = strtolower(pathinfo($files['receipts']['name'][$i], PATHINFO_EXTENSION));
       $filename = uniqid('receipt_') . '.' . $ext;
-      move_uploaded_file($tmpName, $dir . $filename);
+      moveUploadedOrTempFile($tmpName, $dir . $filename);
       $section2['receipts'][] = "uploads/{$year}/{$filename}";
     }
   }

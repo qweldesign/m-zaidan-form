@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../helpers/RequestBody.php';
+
 function handlePutByToken(string $token): void {
   $db = getDB();
 
@@ -19,12 +21,15 @@ function handlePutByToken(string $token): void {
     return;
   }
 
-  $id   = (int)$current['id'];
-  $body = $_POST;
+  $id = (int)$current['id'];
+
+  // PHPはPUTメソッドの場合、multipart/form-dataのボディを自動的に
+  // $_POST / $_FILES へパースしないため、手動で取得する
+  [$body, $files] = resolveRequestBody();
 
   // ファイルアップロード（追加モード）
   $section5 = json_decode($current['section5_json'], true) ?? ['photos' => [], 'docs' => []];
-  $section5 = mergeUploadedFiles($section5);
+  $section5 = mergeUploadedFiles($section5, $files);
 
   $db->beginTransaction();
   try {
@@ -138,19 +143,19 @@ function handlePutByToken(string $token): void {
 }
 
 // ファイルを既存データに追加マージ
-function mergeUploadedFiles(array $section5): array {
+function mergeUploadedFiles(array $section5, array $files): array {
   $year = date('Y');
   $dir  = UPLOAD_DIR . $year . '/';
 
   if (!is_dir($dir)) mkdir($dir, 0755, true);
 
   // 写真の追加
-  if (!empty($_FILES['photos'])) {
-    foreach ($_FILES['photos']['tmp_name'] as $i => $tmpName) {
-      if ($_FILES['photos']['error'][$i] !== UPLOAD_ERR_OK) continue;
-      $ext      = strtolower(pathinfo($_FILES['photos']['name'][$i], PATHINFO_EXTENSION));
+  if (!empty($files['photos'])) {
+    foreach ($files['photos']['tmp_name'] as $i => $tmpName) {
+      if ($files['photos']['error'][$i] !== UPLOAD_ERR_OK) continue;
+      $ext      = strtolower(pathinfo($files['photos']['name'][$i], PATHINFO_EXTENSION));
       $filename = uniqid('photo_') . '.' . $ext;
-      move_uploaded_file($tmpName, $dir . $filename);
+      moveUploadedOrTempFile($tmpName, $dir . $filename);
       $section5['photos'][] = "uploads/{$year}/{$filename}";
     }
   }
@@ -158,9 +163,9 @@ function mergeUploadedFiles(array $section5): array {
   // PDF各種の追加
   $docFields = ['regulations', 'activityReport', 'financialReport', 'activityPlan', 'financialPlan'];
   foreach ($docFields as $field) {
-    if (!empty($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+    if (!empty($files[$field]) && $files[$field]['error'] === UPLOAD_ERR_OK) {
       $filename = uniqid($field . '_') . '.pdf';
-      move_uploaded_file($_FILES[$field]['tmp_name'], $dir . $filename);
+      moveUploadedOrTempFile($files[$field]['tmp_name'], $dir . $filename);
       // 既存パスを配列に変換して追記
       if (!isset($section5['docs'][$field])) {
         $section5['docs'][$field] = [];

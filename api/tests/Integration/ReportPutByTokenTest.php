@@ -425,4 +425,157 @@ class ReportPutByTokenTest extends TestCase {
     $this->assertEquals('無効なトークンです', $response['error']);
   }
 
+  //
+  // 回帰テスト：実際のPUTリクエスト（multipart/form-data）を模したケース
+  //
+  // PHPはPUTメソッドの場合 $_POST / $_FILES を自動的にパースしないため、
+  // このテストでは $_POST / $_FILES をあえて空のままにし、resolveRequestBody() の
+  // 手動パース経路（$GLOBALS['_TEST_RAW_BODY']）を通してハンドラを呼び出す。
+  // $_POST / $_FILES を直接セットする他のテストでは、この本番環境特有の不具合は
+  // 検出できない。
+  //
+
+  private function buildMultipart(array $fields, array $files = []): array {
+    $boundary = 'TestBoundary' . uniqid();
+    $lines    = [];
+
+    foreach ($fields as $name => $value) {
+      $lines[] = "--{$boundary}\r\n";
+      $lines[] = "Content-Disposition: form-data; name=\"{$name}\"\r\n\r\n";
+      $lines[] = "{$value}\r\n";
+    }
+
+    // $files は [name, filename, type, content] のリスト
+    foreach ($files as [$name, $filename, $type, $content]) {
+      $lines[] = "--{$boundary}\r\n";
+      $lines[] = "Content-Disposition: form-data; name=\"{$name}\"; filename=\"{$filename}\"\r\n";
+      $lines[] = "Content-Type: {$type}\r\n\r\n";
+      $lines[] = $content . "\r\n";
+    }
+
+    $lines[] = "--{$boundary}--\r\n";
+
+    return [implode('', $lines), $boundary];
+  }
+
+  protected function tearDownRawBodyOverride(): void {
+    unset($GLOBALS['_TEST_RAW_BODY'], $GLOBALS['_TEST_CONTENT_TYPE']);
+  }
+
+  public function test_正常系_実際のPUTリクエストでテキスト項目の変更がDBに反映される(): void {
+    $submission = $this->createSubmission();
+    $report     = $this->createReport($submission['edit_token']);
+
+    $_POST  = [];
+    $_FILES = [];
+
+    [$raw, $boundary] = $this->buildMultipart([
+      'report_section1_json' => json_encode([
+        'teamName'     => 'はりいしゃギャラリー運営委員会',
+        'contactName'  => '小佐野 直子',
+        'contactEmail' => 'gallery@example.com',
+        'contactPhone' => '090-8765-4321',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'      => '文化交流イベント',
+        'activityCategory' => 'ボランティア活動',
+        'actualStartDate'  => '2025-07-01',
+        'actualEndDate'    => '2025-07-31',
+        'actualVenue'      => '国見公民館',
+        'actualDetail'     => '実際のPUTリクエストによる変更後の実施内容',
+        'income' => [
+          'grantRequest' => 200000, 'memberFees' => 0, 'donations' => 0, 'tickets' => 0,
+          'incomeMemo'   => ['grantRequest' => '', 'memberFees' => '', 'donations' => '', 'tickets' => ''],
+        ],
+        'expenses'   => [],
+        'budgetNote' => '実際のPUTリクエストによる変更後の備考',
+      ]),
+    ]);
+    $GLOBALS['_TEST_RAW_BODY']     = $raw;
+    $GLOBALS['_TEST_CONTENT_TYPE'] = "multipart/form-data; boundary={$boundary}";
+
+    try {
+      $response = $this->callHandleReportPutByToken($report['edit_token']);
+      $this->assertEquals('完了報告内容を更新しました', $response['message']);
+
+      $stmt = $this->db->prepare('SELECT * FROM reports WHERE id = :id');
+      $stmt->execute([':id' => $report['id']]);
+      $row = $stmt->fetch();
+
+      $section2 = json_decode($row['report_section2_json'], true);
+
+      $this->assertEquals('はりいしゃギャラリー運営委員会', $row['team_name']);
+      $this->assertEquals('文化交流イベント', $row['project_name']);
+      $this->assertEquals('国見公民館', $row['actual_venue']);
+      $this->assertEquals('ボランティア活動', $row['activity_category']);
+      $this->assertEquals(200000, $row['grant_request_amount']);
+      $this->assertEquals('国見公民館', $section2['actualVenue']);
+      $this->assertEquals('実際のPUTリクエストによる変更後の備考', $section2['budgetNote']);
+    } finally {
+      $this->tearDownRawBodyOverride();
+    }
+  }
+
+  public function test_正常系_実際のPUTリクエストで添付ファイルが追加される(): void {
+    $submission = $this->createSubmission();
+    $report     = $this->createReport($submission['edit_token']);
+
+    $_POST  = [];
+    $_FILES = [];
+
+    [$raw, $boundary] = $this->buildMultipart(
+      [
+        'report_section1_json' => json_encode([
+          'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+          'contactName'  => '伊藤 大悟',
+          'contactEmail' => 'hariisha@example.com',
+          'contactPhone' => '090-1234-5678',
+        ]),
+        'report_section2_json' => json_encode([
+          'projectName'      => '地域交流イベント',
+          'activityCategory' => 'その他市民活動',
+          'actualStartDate'  => '2025-06-01',
+          'actualEndDate'    => '2025-06-30',
+          'actualVenue'      => 'ギャラリーはりいしゃ',
+          'actualDetail'     => '実施内容のテキスト',
+          'income' => [
+            'grantRequest' => 100000, 'memberFees' => 0, 'donations' => 0, 'tickets' => 0,
+            'incomeMemo'   => ['grantRequest' => '', 'memberFees' => '', 'donations' => '', 'tickets' => ''],
+          ],
+          'expenses'   => [],
+          'budgetNote' => '',
+        ]),
+      ],
+      [
+        ['photos[]',   'new_photo.jpg',   'image/jpeg',      'dummy-new-photo-bytes'],
+        ['receipts[]', 'new_receipt.pdf', 'application/pdf', '%PDF-1.4 dummy new receipt'],
+      ]
+    );
+    $GLOBALS['_TEST_RAW_BODY']     = $raw;
+    $GLOBALS['_TEST_CONTENT_TYPE'] = "multipart/form-data; boundary={$boundary}";
+
+    try {
+      $this->callHandleReportPutByToken($report['edit_token']);
+
+      $stmt = $this->db->prepare('SELECT report_section2_json FROM reports WHERE id = :id');
+      $stmt->execute([':id' => $report['id']]);
+      $row = $stmt->fetch();
+
+      $section2 = json_decode($row['report_section2_json'], true);
+      $this->assertNotEmpty($section2['photos'] ?? null);
+      $this->assertNotEmpty($section2['receipts'] ?? null);
+
+      // 実際にファイルが物理的に保存されていることも確認する
+      $photoPath = UPLOAD_DIR . preg_replace('#^uploads/#', '', end($section2['photos']));
+      $this->assertFileExists($photoPath);
+      $this->assertSame('dummy-new-photo-bytes', file_get_contents($photoPath));
+
+      $receiptPath = UPLOAD_DIR . preg_replace('#^uploads/#', '', end($section2['receipts']));
+      $this->assertFileExists($receiptPath);
+      $this->assertStringContainsString('dummy new receipt', file_get_contents($receiptPath));
+    } finally {
+      $this->tearDownRawBodyOverride();
+    }
+  }
+
 }
