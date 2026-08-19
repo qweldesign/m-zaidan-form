@@ -124,7 +124,7 @@ function handlePutByToken(string $token): void {
       ':section2_json'          => $body['section2_json']       ?? $current['section2_json'],
       ':section3_json'          => $body['section3_json']       ?? $current['section3_json'],
       ':section4_json'          => $body['section4_json']       ?? $current['section4_json'],
-      ':section5_json'          => json_encode($section5Json, JSON_UNESCAPED_UNICODE),
+      ':section5_json'          => json_encode($section5, JSON_UNESCAPED_UNICODE),
       ':token'                  => $token,
     ]);
 

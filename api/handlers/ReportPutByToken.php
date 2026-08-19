@@ -19,14 +19,17 @@ function handleReportPutByToken(string $token): void {
 
   $body = $_POST;
 
-  // ファイルをマージ
-  $section2 = json_decode($current['report_section2_json'], true) ?? [];
-  $section2 = mergeReportUploadedFiles($section2);
-
   $db->beginTransaction();
   try {
     $s1 = json_decode($body['report_section1_json'] ?? '{}', true);
-    $s2 = json_decode($body['report_section2_json'] ?? '{}', true);
+    $s2 = json_decode($body['report_section2_json'] ?? '{}', true) ?? [];
+
+    // 写真・領収書は section2 の JSON では送られてこないため、
+    // 既存データを引き継いだうえで新規アップロード分を追加マージする
+    $currentSection2  = json_decode($current['report_section2_json'], true) ?? [];
+    $s2['photos']     = $currentSection2['photos']   ?? [];
+    $s2['receipts']   = $currentSection2['receipts'] ?? [];
+    $s2 = mergeReportUploadedFiles($s2);
 
     $expenses        = $s2['expenses']  ?? [];
     $totalExpense    = array_sum(array_column($expenses, 'amount'));
@@ -63,7 +66,7 @@ function handleReportPutByToken(string $token): void {
       ':total_expense_amount' => $totalExpense,
       ':grant_usage_amount'   => $totalGrantUsage,
       ':report_section1_json' => $body['report_section1_json'] ?? $current['report_section1_json'],
-      ':report_section2_json' => json_encode($section2, JSON_UNESCAPED_UNICODE),
+      ':report_section2_json' => json_encode($s2, JSON_UNESCAPED_UNICODE),
       ':token'                => $token,
     ]);
 

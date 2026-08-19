@@ -271,6 +271,99 @@ class ReportPutByTokenTest extends TestCase {
     $this->assertGreaterThan($initialReceiptCount, count($section2['receipts'] ?? []));
   }
 
+  public function test_正常系_report_section2_jsonに編集内容が反映される(): void {
+    $submission = $this->createSubmission();
+    $report     = $this->createReport($submission['edit_token']);
+
+    $_POST = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+        'contactPhone' => '090-1234-5678',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '文化交流イベント', // 変更
+        'activityCategory'=> 'ボランティア活動',
+        'actualStartDate' => '2025-07-01',
+        'actualEndDate'   => '2025-07-31',
+        'actualVenue'     => '国見公民館', // 変更
+        'actualDetail'    => '更新後の実施内容', // 変更
+        'income' => [
+          'grantRequest' => 200000, 'memberFees' => 0, 'donations' => 0, 'tickets' => 0,
+          'incomeMemo'   => ['grantRequest' => '', 'memberFees' => '', 'donations' => '', 'tickets' => ''],
+        ],
+        'expenses'   => [],
+        'budgetNote' => '更新後のメモ',
+      ]),
+    ];
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_NO_FILE], 'tmp_name' => [''], 'name' => ['']],
+      'receipts' => ['error' => [UPLOAD_ERR_NO_FILE], 'tmp_name' => [''], 'name' => ['']],
+    ];
+
+    $this->callHandleReportPutByToken($report['edit_token']);
+
+    // フラットカラムだけでなく report_section2_json 側にも編集後の値が反映されていること
+    $stmt = $this->db->prepare('SELECT actual_venue, report_section2_json FROM reports WHERE id = :id');
+    $stmt->execute([':id' => $report['id']]);
+    $row      = $stmt->fetch();
+    $section2 = json_decode($row['report_section2_json'], true);
+
+    $this->assertEquals('国見公民館', $row['actual_venue']);
+    $this->assertEquals('国見公民館', $section2['actualVenue']);
+    $this->assertEquals('文化交流イベント', $section2['projectName']);
+    $this->assertEquals('更新後の実施内容', $section2['actualDetail']);
+    $this->assertEquals('更新後のメモ', $section2['budgetNote']);
+  }
+
+  public function test_正常系_ファイル未添付でも既存の写真と領収書は保持される(): void {
+    $submission = $this->createSubmission();
+    $report     = $this->createReport($submission['edit_token']);
+
+    $stmt = $this->db->prepare('SELECT report_section2_json FROM reports WHERE id = :id');
+    $stmt->execute([':id' => $report['id']]);
+    $before = json_decode($stmt->fetch()['report_section2_json'], true);
+
+    $this->assertNotEmpty($before['photos'] ?? []);
+    $this->assertNotEmpty($before['receipts'] ?? []);
+
+    $_POST = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+        'contactPhone' => '090-1234-5678',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'activityCategory'=> 'その他市民活動',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => 'ギャラリーはりいしゃ',
+        'actualDetail'    => '実施内容のテキスト',
+        'income' => [
+          'grantRequest' => 100000, 'memberFees' => 0, 'donations' => 0, 'tickets' => 0,
+          'incomeMemo'   => ['grantRequest' => '', 'memberFees' => '', 'donations' => '', 'tickets' => ''],
+        ],
+        'expenses'   => [],
+        'budgetNote' => '',
+      ]),
+    ];
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_NO_FILE], 'tmp_name' => [''], 'name' => ['']],
+      'receipts' => ['error' => [UPLOAD_ERR_NO_FILE], 'tmp_name' => [''], 'name' => ['']],
+    ];
+
+    $this->callHandleReportPutByToken($report['edit_token']);
+
+    $stmt->execute([':id' => $report['id']]);
+    $after = json_decode($stmt->fetch()['report_section2_json'], true);
+
+    $this->assertEquals($before['photos'],   $after['photos'] ?? null);
+    $this->assertEquals($before['receipts'], $after['receipts'] ?? null);
+  }
+
   public function test_異常系_無効なトークンはエラーが返る(): void {
     $_POST = [
       'report_section1_json' => '{}',

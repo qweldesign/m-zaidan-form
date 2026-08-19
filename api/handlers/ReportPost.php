@@ -17,7 +17,7 @@ function handleReportPost(): void {
   }
 
   // ファイルアップロード処理
-  $section2Json = uploadReportFiles();
+  $uploadedFiles = uploadReportFiles();
 
   // 編集用トークンを生成
   // リクエストボディからsubmission_tokenを受け取る
@@ -50,7 +50,11 @@ function handleReportPost(): void {
   try {
 
     $s1 = json_decode($body['report_section1_json'] ?? '{}', true);
-    $s2 = json_decode($body['report_section2_json'] ?? '{}', true);
+    $s2 = json_decode($body['report_section2_json'] ?? '{}', true) ?? [];
+
+    // アップロードした写真・領収書のパスを section2 に反映
+    $s2['photos']   = $uploadedFiles['photos'];
+    $s2['receipts'] = $uploadedFiles['receipts'];
 
     // 支出合計・助成金使用額合計を計算
     $expenses        = $s2['expenses']  ?? [];
@@ -85,7 +89,7 @@ function handleReportPost(): void {
       ':total_expense_amount' => $totalExpense,
       ':grant_usage_amount'   => $totalGrantUsage,
       ':report_section1_json' => $body['report_section1_json'] ?? '{}',
-      ':report_section2_json' => $body['report_section2_json'] ?? '{}',
+      ':report_section2_json' => json_encode($s2, JSON_UNESCAPED_UNICODE),
       ':edit_token'           => $editToken,
     ]);
 

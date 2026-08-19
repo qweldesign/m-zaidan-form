@@ -231,6 +231,65 @@ class SubmissionPutByTokenTest extends TestCase {
     $this->assertEquals(0, $count);
   }
 
+  public function test_正常系_ファイル未添付なら既存の添付ファイルが保持される(): void {
+    $_POST = [
+      'section1_json' => json_encode([
+        'teamName' => 'ギャラリーはりいしゃ運営委員会', 'teamAddress' => '福井県福井市蒲生町1-42',
+        'activityCategory' => 'その他市民活動',
+        'representativeName' => '伊藤 大悟', 'representativeEmail' => 'hariisha@example.com',
+        'contactName' => '伊藤 大悟', 'contactEmail' => 'hariisha@example.com',
+        'sameAsRepresentative' => true,
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント', 'startDate' => '2025-06-01', 'endDate' => '2025-06-30',
+      ]),
+      'section3_json' => json_encode(['income' => ['grantRequest' => 100000], 'expenses' => []]),
+      'section4_json' => json_encode([]),
+    ];
+    $tmpPdf = sys_get_temp_dir() . '/repro_regulations.pdf';
+    file_put_contents($tmpPdf, '%PDF-1.4 dummy');
+    $_FILES = [
+      'regulations' => ['error' => UPLOAD_ERR_OK, 'tmp_name' => $tmpPdf, 'name' => 'kiyaku.pdf'],
+    ];
+
+    ob_start();
+    handlePost();
+    $output = ob_get_clean();
+    $id     = json_decode($output, true)['data']['id'];
+
+    $stmt = $this->db->prepare('SELECT edit_token, section5_json FROM submissions WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $row  = $stmt->fetch();
+
+    $before = json_decode($row['section5_json'], true);
+    $this->assertNotEmpty($before['docs']['regulations'] ?? null);
+
+    // 編集時：ファイルを何も添付せずに送信
+    $_POST = [
+      'section1_json' => json_encode([
+        'teamName' => 'ギャラリーはりいしゃ運営委員会（編集後）', 'teamAddress' => '福井県福井市蒲生町1-42',
+        'activityCategory' => 'その他市民活動',
+        'representativeName' => '伊藤 大悟', 'representativeEmail' => 'hariisha@example.com',
+        'contactName' => '伊藤 大悟', 'contactEmail' => 'hariisha@example.com',
+        'sameAsRepresentative' => true,
+      ]),
+      'section2_json' => json_encode([
+        'projectName' => '地域交流イベント', 'startDate' => '2025-06-01', 'endDate' => '2025-06-30',
+      ]),
+      'section3_json' => json_encode(['income' => ['grantRequest' => 100000], 'expenses' => []]),
+      'section4_json' => json_encode([]),
+    ];
+    $_FILES = [];
+
+    $this->callHandlePutByToken($row['edit_token']);
+
+    $stmt->execute([':id' => $id]);
+    $after = json_decode($stmt->fetch()['section5_json'], true);
+
+    // 添付ファイル（docs/photos）が消えずに引き継がれていること
+    $this->assertEquals($before['docs'], $after['docs'] ?? null);
+  }
+
   public function test_異常系_無効なトークンはエラーが返る(): void {
     $_POST  = ['section1_json' => '{}', 'section2_json' => '{}', 'section3_json' => '{}', 'section4_json' => '{}'];
     $_FILES = ['photos' => ['error' => [], 'tmp_name' => [], 'name' => []]];
