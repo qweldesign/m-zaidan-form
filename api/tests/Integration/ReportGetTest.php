@@ -90,7 +90,11 @@ class ReportGetTest extends TestCase {
     $this->assertEquals('地域交流イベント', $data['report_section2_json']['projectName']);
   }
 
-  public function test_正常系_論理削除済みのデータは取得できない(): void {
+  // アプリの詳細パネルは、一覧で「削除済みを含む」表示にした際にも該当行を
+  // クリックして閲覧・復元できる必要があるため、論理削除済みのデータも
+  // 個別取得（GET /api/reports/:id）では取得できる仕様になっている
+  // （一覧取得・CSVエクスポートでは is_deleted = 0 のもののみに絞り込まれる）
+  public function test_正常系_論理削除済みのデータも個別取得できる(): void {
     $id = $this->createReport();
 
     $stmt = $this->db->prepare('UPDATE reports SET is_deleted = 1 WHERE id = :id');
@@ -98,8 +102,9 @@ class ReportGetTest extends TestCase {
 
     $response = $this->callHandleReportGet($id);
 
-    $this->assertArrayHasKey('error', $response);
-    $this->assertEquals('完了報告データが見つかりません', $response['error']);
+    $this->assertEquals('success', $response['message']);
+    $this->assertEquals($id, $response['data']['id']);
+    $this->assertEquals(1, $response['data']['is_deleted']);
   }
 
   public function test_異常系_存在しないIDはエラーが返る(): void {
