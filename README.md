@@ -153,6 +153,15 @@ form/
 | `GET /api/reports/edit/:token` で 404 | 完了報告未提出（申請データを初期値として新規作成） |
 | `PUT /api/reports/edit/:token` で status が `確認前` 以外 | 403 エラー（編集不可） |
 
+#### 添付ファイルの扱い（PUT時）
+
+`PUT /api/submissions/edit/:token` ・ `PUT /api/reports/edit/:token` はいずれも、テキスト項目は送信内容で**上書き**される一方、添付ファイル（写真・PDF・領収書）は以下のルールで**追加（append）**される。上書き・削除は行われない。
+
+- そのフィールドに新しいファイルを添付しなかった場合：既存のファイルをそのまま保持する
+- 新しいファイルを添付した場合：既存のファイルに追加する（申請PDF・完了報告の写真／領収書のいずれも同様）
+
+そのため、同じ書類フィールド（例：`docs.regulations`）へ複数回ファイルを追加すると、そのフィールドの値は文字列1件ではなく配列（複数件）になる。詳細は後述の DB スキーマの節を参照。
+
 ---
 
 ## DB スキーマ
@@ -187,14 +196,18 @@ form/
 | section2_json | TEXT | `{}` | 参加人数・事業内容・共催情報など |
 | section3_json | TEXT | `{}` | 収入明細・支出明細・備考 |
 | section4_json | TEXT | `{}` | 設立背景・活動内容・実績PRなど |
-| section5_json | TEXT | `{}` | ファイルパスなど |
+| section5_json | TEXT | `{}` | ファイルパスなど（形式は下記を参照） |
 | edit_token | TEXT | NULL | 編集用トークン（UNIQUE） |
 | created_at | TEXT | `datetime('now', 'localtime')` | 申請日時 |
 | updated_at | TEXT | `datetime('now', 'localtime')` | 更新日時（トリガーで自動更新） |
 | is_deleted | INTEGER | `0` | 論理削除フラグ（0/1） |
 | deleted_at | TEXT | NULL | 削除日時 |
 
+`section5_json` は `{ "photos": string[], "docs": { [field]: string | string[] } }` の形。`photos` は常に配列。`docs.*` は初回提出時は文字列1件、編集で追加された後は配列になる（フロント・API側とも文字列・配列の両方に対応済み）。
+
 ### submission_logs（編集履歴）
+
+`submissions` の変更履歴のみを記録する。`reports`（完了報告）には対応する履歴テーブルが存在せず、完了報告の変更は記録されない（`ReportPatch` は意図的にログ記録をスキップしている）。
 
 | カラム | 型 | デフォルト | 説明 |
 |---|---|---|---|
@@ -225,12 +238,14 @@ form/
 | total_expense_amount | INTEGER | `0` | 支出合計 |
 | grant_usage_amount | INTEGER | `0` | 助成金使用額合計 |
 | report_section1_json | TEXT | `{}` | 団体名・担当者情報 |
-| report_section2_json | TEXT | `{}` | 事業情報・参加人数・収支決算・ファイルパス |
+| report_section2_json | TEXT | `{}` | 事業情報・参加人数・収支決算・ファイルパス（形式は下記を参照） |
 | edit_token | TEXT | NULL | 編集用トークン（submissions.edit_token と共用・UNIQUE） |
 | created_at | TEXT | `datetime('now', 'localtime')` | 報告日時 |
 | updated_at | TEXT | `datetime('now', 'localtime')` | 更新日時（トリガーで自動更新） |
 | is_deleted | INTEGER | `0` | 論理削除フラグ（0/1） |
 | deleted_at | TEXT | NULL | 削除日時 |
+
+`report_section2_json` は事業情報・収支決算のフィールドに加え、`photos` / `receipts`（いずれも常に配列）を同一オブジェクト内に持つ。新規提出・編集のいずれでもこの2フィールドにファイルパスが反映される。編集時、テキスト項目は送信内容で上書きされるが、`photos` / `receipts` は既存分を保持したうえで新規アップロード分を追加する。
 
 ### インデックス
 
@@ -317,6 +332,22 @@ cd api
 composer install
 ```
 
+### 5. テストの実行
+
+API（PHPUnit）:
+
+```bash
+cd api
+vendor/bin/phpunit
+```
+
+フォーム（Vitest）:
+
+```bash
+cd form
+npm run test:run
+```
+
 ---
 
 ## フォーム設計メモ
@@ -326,8 +357,10 @@ composer install
 - React Hook Form で状態管理（`useForm` は `Application.tsx` に1つ）
 - 各 Section に `register` / `errors` / `watch` / `setValue` / `control` を props で渡す
 - LocalStorage に途中保存（同一端末・同一ブラウザ・通常モードのみ）
-- STEP 移動時・明示的な保存ボタン押下時に自動保存
+- STEP 移動時・明示的な保存ボタン押下時に自動保存。**「一時保存」ボタンはバリデーションを行わずに保存する**（下書きとして未入力のまま保存可能）
 - フォームアクセス時に保存データを検出 → 再開確認ダイアログを表示
+- 再開時、保存内容を全 STEP にわたって再検証する。不備があれば保存時の STEP ではなく不備のある STEP へ誘導し、警告メッセージを表示する（`useStepForm` の `resumeWarning`）
+- 送信時はフォーム全体（現在表示していない STEP も含む）を再検証する。不備があった場合は該当 STEP へ自動的に移動し、警告メッセージを表示する（`onInvalid` ハンドラ）。これが無いと、非表示 STEP のエラーにより送信ボタンが無反応に見える不具合につながる
 - 送信完了後に LocalStorage をクリア
 - ファイル（写真・PDF）は LocalStorage に保存不可のため再開時に再選択が必要
 - LocalStorageキー：`zaidan_draft` / `zaidan_draft_step`
@@ -340,13 +373,14 @@ composer install
 | 2 | 申請事業について（基本情報・参加人数・事業内容・共催） |
 | 3 | 収支予算書（収入・支出・自動計算） |
 | 4 | 団体の活動について（設立背景・活動内容・実績PR） |
-| 5 | 添付資料（活動写真・PDF 5種・確認チェック） |
+| 5 | 添付資料（活動写真・PDF 5種・確認チェック）。編集時（トークンアクセス時）は添付が任意になり、未添付の場合は既存ファイルを保持する |
 
 ### 完了報告フォーム（Report.tsx）
 
 - React Hook Form で状態管理（`useForm` は `Report.tsx` に1つ）
 - 各 ReportSection に `register` / `errors` / `watch` / `control` を props で渡す
-- LocalStorage に途中保存（申請フォームと同じ仕組み）
+- LocalStorage に途中保存（申請フォームと同じ仕組み。一時保存はバリデーションなし）
+- 再開時・送信時の全 STEP 再検証、および `onInvalid` による不備 STEP への自動誘導は申請フォームと同じ仕組みを利用する
 - 送信完了後に LocalStorage をクリア
 - ファイルは LocalStorage に保存不可のため再開時に再選択が必要
 - LocalStorageキー：`zaidan_report_draft` / `zaidan_report_draft_step`
@@ -357,7 +391,7 @@ composer install
 |---|---|
 | 1 | 申請団体の概要（団体名・担当者情報） |
 | 2 | 申請事業について（事業名・実施期間・場所・参加人数・収支決算報告） |
-| 3 | 添付資料（活動写真1〜2枚・領収書複数枚・確認チェック） |
+| 3 | 添付資料（活動写真1〜2枚・領収書複数枚・確認チェック）。編集時（トークンアクセス時）は添付が任意になり、未添付の場合は既存ファイルを保持する |
 
 ### 郵便番号自動補完
 
