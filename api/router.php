@@ -113,6 +113,14 @@ function route(): void {
     return;
   }
 
+  // GET /api/reports/export/csv
+  if ($method === 'GET' && preg_match('#^/api/reports/export/csv$#', $path)) {
+    require_once __DIR__ . '/handlers/ReportExport.php';
+    requireAuth();
+    handleReportExport();
+    return;
+  }
+
   // GET /api/reports/edit/:token
   if ($method === 'GET' && preg_match('#^/api/reports/edit/([a-f0-9]+)$#', $path, $matches)) {
     require_once __DIR__ . '/handlers/ReportGetByToken.php';
