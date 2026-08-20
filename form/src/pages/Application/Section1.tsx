@@ -566,10 +566,10 @@ function Section1({ register, errors, watch, setValue }: Props) {
               <td className="block md:table-cell p-5">
                 <input
                   type="text"
+                  disabled={sameAsRep}
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400"
                   {...register('section1.contactName', {
                     required: '担当者名を入力してください',
-                    disabled: sameAsRep,
                   })}
                 />
                 {errors.section1?.contactName && (
@@ -585,11 +585,11 @@ function Section1({ register, errors, watch, setValue }: Props) {
               <td className="block md:table-cell p-5">
                 <input
                   type="text"
+                  disabled={sameAsRep}
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400"
                   {...register('section1.contactNameKana', {
                     required: 'フリガナを入力してください',
                     pattern: { value: /^[ァ-ヶー\s]+$/, message: 'カタカナで入力してください' },
-                    disabled: sameAsRep,
                   })}
                 />
                 {errors.section1?.contactNameKana && (
@@ -605,11 +605,11 @@ function Section1({ register, errors, watch, setValue }: Props) {
               <td className="block md:table-cell p-5">
                 <input
                   type="tel"
+                  disabled={sameAsRep}
                   className="w-full md:w-[320px] p-3 border border-slate-300 rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400"
                   {...register('section1.contactPhone', {
                     required: '電話番号を入力してください',
                     pattern: { value: /^[0-9-+().\s]+$/, message: '正しい電話番号を入力してください' },
-                    disabled: sameAsRep,
                   })}
                 />
                 {errors.section1?.contactPhone && (
@@ -625,11 +625,11 @@ function Section1({ register, errors, watch, setValue }: Props) {
               <td className="block md:table-cell p-5">
                 <input
                   type="email"
+                  disabled={sameAsRep}
                   className="w-full p-3 border border-slate-300 rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400"
                   {...register('section1.contactEmail', {
                     required: 'メールアドレスを入力してください',
                     pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: '正しいメールアドレスを入力してください' },
-                    disabled: sameAsRep,
                   })}
                 />
                 {errors.section1?.contactEmail && (

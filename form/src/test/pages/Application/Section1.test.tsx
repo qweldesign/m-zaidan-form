@@ -162,6 +162,64 @@ describe('Section1', () => {
       )
       expect(disabledInputs.length).toBeGreaterThan(0)
     })
+
+    // 回帰テスト：「代表者と同じ」チェック時、担当者フィールドがネイティブの
+    // disabled属性で見た目上は無効化されつつも、コピーされた値が送信データに
+    // 反映されることを確認する。register()のdisabledオプション経由で無効化すると
+    // react-hook-formがそのフィールドの値を送信データから除外してしまい、
+    // 「担当者メールアドレスが不正です」等のサーバー側バリデーションエラーに
+    // つながっていたため（Section1.tsx参照）。
+    it('「代表者と同じ」をチェックしても担当者情報が送信データから欠落しない', async () => {
+      function TestWrapper({ onSubmit }: { onSubmit: (data: FormData) => void }) {
+        const { register, watch, setValue, handleSubmit, formState: { errors } } = useForm<FormData>({
+          defaultValues: {
+            section1: {
+              teamName:             'テスト団体',
+              teamNameKana:         'テストダンタイ',
+              teamPostalCode:       '910-0001',
+              teamAddress:          '福井県福井市',
+              establishedYear:      String(new Date().getFullYear()),
+              activityCategory:     'その他市民活動',
+              members:              { under20: 0, age21to40: 0, age41to60: 0, over61: 0 },
+              grantHistory:         { thisFoundationCount: 0, thisFoundationLatestYear: '', otherFoundationCount: 0, otherFoundationLatestYear: '' },
+              applicationHistory:   { count: 0, latestYear: '' },
+              applicationRoute:     [],
+              applicationRouteOther:'',
+              representativeName:   '代表 太郎',
+              representativeNameKana: 'ダイヒョウ タロウ',
+              representativePhone:  '090-0000-0000',
+              representativeEmail:  'rep@example.com',
+              sameAsRepresentative: false,
+              contactName:          '',
+              contactNameKana:      '',
+              contactPhone:         '',
+              contactEmail:         '',
+            },
+          } as any,
+        })
+
+        return (
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <Section1 register={register} errors={errors} watch={watch} setValue={setValue} />
+            <button type="submit">送信</button>
+          </form>
+        )
+      }
+
+      const onSubmit = vi.fn()
+      render(<TestWrapper onSubmit={onSubmit} />)
+
+      const checkbox = screen.getByRole('checkbox', { name: '代表者と同じ' })
+      await userEvent.click(checkbox)
+
+      await userEvent.click(screen.getByRole('button', { name: '送信' }))
+
+      expect(onSubmit).toHaveBeenCalledTimes(1)
+      const submitted = onSubmit.mock.calls[0][0] as FormData
+      expect(submitted.section1.contactEmail).toBe('rep@example.com')
+      expect(submitted.section1.contactName).toBe('代表 太郎')
+      expect(submitted.section1.contactPhone).toBe('090-0000-0000')
+    })
   })
 
   // ============================================================
