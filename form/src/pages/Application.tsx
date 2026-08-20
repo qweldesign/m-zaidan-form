@@ -186,9 +186,9 @@ function Application({ editToken }: Props) {
       ] as const
 
       docFields.forEach((field) => {
-        const files = section5.docs[field]
-        if (files && files.length > 0) {
-          formData.append(field, files[0])
+        const file = section5.docs[field]
+        if (file) {
+          formData.append(field, file)
         }
       })
 

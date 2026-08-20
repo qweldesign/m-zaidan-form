@@ -131,11 +131,11 @@ export type Section4Data = {
 export type Section5Data = {
   photos: File[]
   docs: {
-    regulations: FileList | null
-    activityReport: FileList | null
-    financialReport: FileList | null
-    activityPlan: FileList | null
-    financialPlan: FileList | null
+    regulations: File | null
+    activityReport: File | null
+    financialReport: File | null
+    activityPlan: File | null
+    financialPlan: File | null
   }
   confirmed: boolean
 }

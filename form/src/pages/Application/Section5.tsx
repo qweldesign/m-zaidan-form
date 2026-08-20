@@ -3,6 +3,7 @@
 import type { UseFormRegister, FieldErrors, UseFormWatch, Control } from 'react-hook-form'
 import type { FormData } from '../../types/form'
 import PhotoSlots from '../../components/PhotoSlots'
+import PdfUploader from '../../components/PdfUploader'
 
 type Props = {
   register: UseFormRegister<FormData>
@@ -84,63 +85,28 @@ function Section5({ register, errors, watch, control, isEditMode }: Props) {
 
         <table className="block md:table w-full border-collapse">
           <tbody className="block md:table-row-group">
-            {PDF_DOCS.map(({ label, field }) => {
-              const watchedFile = watch(`section5.${field}` as const)
-              return (
-                <tr
-                  key={field}
-                  className="block md:table-row border-b border-slate-100 last:border-none"
-                >
-                  <td className="block md:table-cell p-5 align-top md:w-70">
-                    <label className="block font-bold">
-                      {label}<span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <p className="mt-2 text-sm text-slate-500">PDF形式・10MB以内</p>
-                  </td>
-                  <td className="block md:table-cell p-5">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                      <input
-                        type="file"
-                        accept="application/pdf"
-                        className="block w-full text-sm text-slate-600
-                          file:mr-4 file:px-4 file:py-2 file:rounded-lg file:border-0
-                          file:bg-orange-500 file:text-white file:font-bold
-                          hover:file:bg-orange-600"
-                        {...register(`section5.${field}` as const, {
-                          required: isEditMode ? false : `${label}をアップロードしてください`,
-                          validate: (files) => {
-                            if (!files || files.length === 0) return true
-                            const file = files[0]
-                            if (file.size > 10 * 1024 * 1024) {
-                              return `ファイルサイズが10MBを超えています`
-                            }
-                            return true
-                          },
-                        })}
-                      />
-
-                      {/* 選択済みファイル名 */}
-                      {watchedFile && watchedFile.length > 0 && (
-                        <p className="mt-2 text-sm text-orange-700 flex items-center gap-2">
-                          <span className="text-orange-400">✓</span>
-                          {watchedFile[0].name}
-                          <span className="text-slate-400">
-                            ({(watchedFile[0].size / 1024).toFixed(0)} KB)
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                    {errors.section5?.docs?.[field.replace('docs.', '') as keyof FormData['section5']['docs']] && (
-                      <p className="text-red-500 text-sm mt-2">
-                        {(errors.section5.docs as Record<string, { message?: string }>)[
-                          field.replace('docs.', '')
-                        ]?.message}
-                      </p>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
+            {PDF_DOCS.map(({ label, field }) => (
+              <tr
+                key={field}
+                className="block md:table-row border-b border-slate-100 last:border-none"
+              >
+                <td className="block md:table-cell p-5 align-top md:w-70">
+                  <label className="block font-bold">
+                    {label}<span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <p className="mt-2 text-sm text-slate-500">PDF形式・10MB以内</p>
+                </td>
+                <td className="block md:table-cell p-5">
+                  <PdfUploader
+                    control={control}
+                    errors={errors}
+                    name={`section5.${field}` as const}
+                    label={label}
+                    isEditMode={isEditMode}
+                  />
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </section>
