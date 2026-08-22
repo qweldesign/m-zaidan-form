@@ -18,6 +18,10 @@ type Options<T extends FieldValues> = {
   getValues: UseFormGetValues<T>
   reset: UseFormReset<T>
   trigger: UseFormTrigger<T>
+  // 編集トークンでの再編集時、サーバーからの初期データ取得（reset）が完了するまでは
+  // マウント時のLocalStorage確認（再開ダイアログの表示判定）を保留するためのフラグ。
+  // 省略時はtrue（トークンを使わない画面はこれまで通り即座に判定する）。
+  enabled?: boolean
 }
 
 // errors オブジェクトを見て、エラーを含む最初のステップ番号を返す（無ければ null）
@@ -49,6 +53,7 @@ export function useStepForm<T extends FieldValues>({
   getValues,
   reset,
   trigger,
+  enabled = true,
 }: Options<T>) {
   const [step, setStep] = useState(1)
   const [showResumeDialog, setShowResumeDialog] = useState(false)
@@ -56,10 +61,15 @@ export function useStepForm<T extends FieldValues>({
   const [resumeWarning, setResumeWarning] = useState(false)
 
   // マウント時にLocalStorageを確認
+  // enabledがfalseの間（編集トークンでのサーバーデータ取得が完了する前）は判定しない。
+  // これを待たないと、トークン取得の完了（reset）より先にダイアログが表示され、
+  // ユーザーが「再開する」を押した際に取得済みのサーバーデータを
+  // 古いLocalStorageの内容で上書きしてしまうことがある。
   useEffect(() => {
+    if (!enabled) return
     const saved = localStorage.getItem(storageKey)
     if (saved) setShowResumeDialog(true)
-  }, [storageKey])
+  }, [storageKey, enabled])
 
   // 先頭のステップから順に検証し、最初に無効だったステップ番号を返す（すべて有効なら null）
   // 「一時保存」はバリデーションを行わずに保存されるため、再開時に不備が残っていないか確認する

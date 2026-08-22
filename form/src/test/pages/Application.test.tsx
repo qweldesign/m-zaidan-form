@@ -84,6 +84,67 @@ describe('Application', () => {
   })
 
   // ============================================================
+  // 編集トークン使用時のLocalStorageキー分離
+  // ============================================================
+  // トークン無しの新規申請と、トークン付きURLでの再編集とで一時保存の
+  // LocalStorageキーを分ける前は、一方の一時保存データがもう一方の
+  // 再開ダイアログに誤って表示されてしまう問題があった。
+
+  describe('編集トークン使用時のLocalStorageキー分離', () => {
+    const editingResponse = {
+      ok: true,
+      json: async () => ({
+        data: {
+          status: '審査前',
+          section1_json: {}, section2_json: {}, section3_json: {}, section4_json: {},
+        },
+      }),
+    }
+
+    it('トークン無しの一時保存データがあっても、編集トークン付きURLではダイアログが表示されない', async () => {
+      localStorage.setItem('zaidan_draft', JSON.stringify({ section1: {} }))
+      mockFetch.mockResolvedValue(editingResponse)
+
+      render(<Application editToken="tok123" />)
+
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+      expect(screen.queryByText('入力途中のデータがあります')).not.toBeInTheDocument()
+    })
+
+    it('編集トークンごとに一時保存データが別キーで保存され、トークン無しのキーとは混ざらない', async () => {
+      mockFetch.mockResolvedValue(editingResponse)
+
+      render(<Application editToken="tok123" />)
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+
+      await userEvent.click(screen.getByRole('button', { name: '一時保存' }))
+
+      expect(localStorage.getItem('zaidan_draft')).toBeNull()
+      expect(localStorage.getItem('zaidan_draft_edit_tok123')).not.toBeNull()
+    })
+
+    it('トークンの取得が完了するまで再開ダイアログの判定を待つ（サーバーデータ取得中に古い一時保存で上書きされない）', async () => {
+      // このトークン専用のキーに、以前中断した再編集の一時保存データがあるケース
+      localStorage.setItem('zaidan_draft_edit_tok123', JSON.stringify({ section1: {} }))
+
+      let resolveFetch: (value: unknown) => void = () => {}
+      mockFetch.mockReturnValue(new Promise((resolve) => { resolveFetch = resolve }))
+
+      render(<Application editToken="tok123" />)
+
+      // サーバーからの取得が完了するまではダイアログを出さない
+      expect(screen.queryByText('入力途中のデータがあります')).not.toBeInTheDocument()
+
+      resolveFetch(editingResponse)
+
+      // 取得完了後にあらためて判定され、ダイアログが表示される
+      await waitFor(() => {
+        expect(screen.getByText('入力途中のデータがあります')).toBeInTheDocument()
+      })
+    })
+  })
+
+  // ============================================================
   // STEP遷移
   // ============================================================
 

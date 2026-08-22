@@ -52,6 +52,52 @@ describe('useStepForm', () => {
   })
 
   // ============================================================
+  // enabledオプション（編集トークン取得中のダイアログ抑止）
+  // ============================================================
+
+  describe('enabledオプション', () => {
+    it('enabledがfalseの間は保存データがあってもshowResumeDialogがtrueにならない', () => {
+      localStorage.setItem('test_draft', JSON.stringify({ section1: {} }))
+
+      const mocks = createMocks()
+      const { result } = renderHook(
+        (props) => useStepForm(props),
+        { initialProps: { ...defaultOptions(mocks), enabled: false } },
+      )
+
+      expect(result.current.showResumeDialog).toBe(false)
+    })
+
+    it('enabledがfalse→trueになった時点で改めてLocalStorageを確認する', () => {
+      // 編集トークンでの再編集を想定：
+      // マウント直後（サーバーからのデータ取得中）はenabled=false、
+      // 取得完了後にenabled=trueへ切り替わる。
+      localStorage.setItem('test_draft', JSON.stringify({ section1: {} }))
+
+      const mocks = createMocks()
+      const { result, rerender } = renderHook(
+        (props) => useStepForm(props),
+        { initialProps: { ...defaultOptions(mocks), enabled: false } },
+      )
+
+      expect(result.current.showResumeDialog).toBe(false)
+
+      rerender({ ...defaultOptions(mocks), enabled: true })
+
+      expect(result.current.showResumeDialog).toBe(true)
+    })
+
+    it('enabledを省略した場合は従来通り即座に判定される', () => {
+      localStorage.setItem('test_draft', JSON.stringify({ section1: {} }))
+
+      const mocks = createMocks()
+      const { result } = renderHook(() => useStepForm(defaultOptions(mocks)))
+
+      expect(result.current.showResumeDialog).toBe(true)
+    })
+  })
+
+  // ============================================================
   // handleResume
   // ============================================================
 

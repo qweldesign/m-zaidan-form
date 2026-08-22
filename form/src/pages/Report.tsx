@@ -21,6 +21,14 @@ function Report({ editToken }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [validationNotice, setValidationNotice] = useState<string | null>(null)
+  // 編集トークンでの再編集時、サーバーからの初期データ取得（下のuseEffect）が
+  // 完了するまでtrueにしない。トークン無し（新規完了報告）の場合は最初から判定して良い。
+  const [tokenResolved, setTokenResolved] = useState(!editToken)
+
+  // 一時保存のLocalStorageキー。編集トークンがある場合はトークンごとに分ける
+  // （Application.tsxと同じ理由。共通キーだと新規入力中と再編集中のデータが混ざる）。
+  const storageKey     = editToken ? `zaidan_report_draft_edit_${editToken}` : 'zaidan_report_draft'
+  const stepStorageKey = editToken ? `zaidan_report_draft_edit_step_${editToken}` : 'zaidan_report_draft_step'
 
   // ステップとフォームの各セクションの対応（送信時のエラー誘導・一時保存の再検証で共有する）
   const stepFieldsMap: Record<number, (keyof ReportFormData)[]> = {
@@ -85,12 +93,13 @@ function Report({ editToken }: Props) {
     clearStorage,
   } = useStepForm<ReportFormData>({
     totalSteps: 3,
-    storageKey: 'zaidan_report_draft',
-    stepStorageKey: 'zaidan_report_draft_step',
+    storageKey,
+    stepStorageKey,
     stepFields: stepFieldsMap,
     getValues,
     reset,
     trigger,
+    enabled: tokenResolved,
   })
 
   // フォーム全体のバリデーションに失敗した場合（非表示のステップに不備がある場合を含む）、
@@ -227,6 +236,10 @@ function Report({ editToken }: Props) {
 
       } catch {
         alert('データの取得中にエラーが発生しました。')
+      } finally {
+        // サーバーデータの反映（reset）が終わってから、このトークン専用の
+        // 一時保存キーでの再開ダイアログ判定を許可する（成功・失敗いずれの場合も）。
+        setTokenResolved(true)
       }
     }
 

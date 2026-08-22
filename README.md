@@ -382,7 +382,9 @@ npm run test:run
 - 送信時はフォーム全体（現在表示していない STEP も含む）を再検証する。不備があった場合は該当 STEP へ自動的に移動し、警告メッセージを表示する（`onInvalid` ハンドラ）。これが無いと、非表示 STEP のエラーにより送信ボタンが無反応に見える不具合につながる
 - 送信完了後に LocalStorage をクリア
 - ファイル（写真・PDF）は LocalStorage に保存不可のため再開時に再選択が必要
-- LocalStorageキー：`zaidan_draft` / `zaidan_draft_step`
+- LocalStorageキー：`zaidan_draft` / `zaidan_draft_step`（通常モード）、`zaidan_draft_edit_<トークン>` / `zaidan_draft_edit_step_<トークン>`（編集トークンでの再編集時）
+  - 通常モードと編集モードでキーを分けているのは、共通のキーのままだと「トークン無しで新規入力中の一時保存データ」が「編集トークンでの再編集時」の再開候補として誤って表示されてしまう（またはその逆）ため。編集トークンごとにもキーを分けているため、同一ブラウザで複数の申請を編集トークン経由で編集してもデータは混ざらない
+  - 編集トークンアクセス時は、サーバーからの初期データ取得（`reset`）が完了するまで再開ダイアログの判定自体を保留する（`useStepForm` の `enabled` オプション）。これが無いと、サーバーデータの反映前にダイアログが表示され、ユーザーが「再開する」を押した際に取得済みのサーバーデータを古い LocalStorage の内容で上書きしてしまうことがあった
 
 ### STEP 構成（申請フォーム）
 
@@ -402,7 +404,7 @@ npm run test:run
 - 再開時・送信時の全 STEP 再検証、および `onInvalid` による不備 STEP への自動誘導は申請フォームと同じ仕組みを利用する
 - 送信完了後に LocalStorage をクリア
 - ファイルは LocalStorage に保存不可のため再開時に再選択が必要
-- LocalStorageキー：`zaidan_report_draft` / `zaidan_report_draft_step`
+- LocalStorageキー：`zaidan_report_draft` / `zaidan_report_draft_step`（通常モード）、`zaidan_report_draft_edit_<トークン>` / `zaidan_report_draft_edit_step_<トークン>`（編集トークン時）。キー分離の理由・再開ダイアログの判定タイミングについては要望申請フォームと同じ（上記参照）
 
 ### STEP 構成（完了報告フォーム）
 

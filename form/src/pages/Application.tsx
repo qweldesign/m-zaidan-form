@@ -23,6 +23,16 @@ function Application({ editToken }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [validationNotice, setValidationNotice] = useState<string | null>(null)
+  // 編集トークンでの再編集時、サーバーからの初期データ取得（下のuseEffect）が
+  // 完了するまでtrueにしない。トークン無し（新規申請）の場合は最初から判定して良い。
+  const [tokenResolved, setTokenResolved] = useState(!editToken)
+
+  // 一時保存のLocalStorageキー。編集トークンがある場合はトークンごとに分ける。
+  // 共通のキーのままだと、「トークン無しで新規入力中の一時保存データ」が
+  // 「トークン付きURLでの再編集中」に誤って再開候補として表示されてしまったり、
+  // 逆に複数の申請をトークンで編集した際にデータが混ざったりする。
+  const storageKey     = editToken ? `zaidan_draft_edit_${editToken}` : 'zaidan_draft'
+  const stepStorageKey = editToken ? `zaidan_draft_edit_step_${editToken}` : 'zaidan_draft_step'
 
   // ステップとフォームの各セクションの対応（送信時のエラー誘導・一時保存の再検証で共有する）
   const stepFieldsMap: Record<number, (keyof FormSchema)[]> = {
@@ -133,12 +143,13 @@ function Application({ editToken }: Props) {
     clearStorage,
   } = useStepForm<FormSchema>({
     totalSteps: 5,
-    storageKey: 'zaidan_draft',
-    stepStorageKey: 'zaidan_draft_step',
+    storageKey,
+    stepStorageKey,
     stepFields: stepFieldsMap,
     getValues,
     reset,
     trigger,
+    enabled: tokenResolved,
   })
 
   // フォーム全体のバリデーションに失敗した場合（非表示のステップに不備がある場合を含む）、
@@ -254,6 +265,10 @@ function Application({ editToken }: Props) {
         setIsEditMode(true)
       } catch {
         alert('申請データの取得中にエラーが発生しました。')
+      } finally {
+        // サーバーデータの反映（reset）が終わってから、このトークン専用の
+        // 一時保存キーでの再開ダイアログ判定を許可する（成功・失敗いずれの場合も）。
+        setTokenResolved(true)
       }
     }
 
