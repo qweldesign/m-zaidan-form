@@ -4,6 +4,7 @@ import type { UseFormRegister, FieldErrors, UseFormWatch, Control } from 'react-
 import type { ReportFormData } from '../../types/form'
 import ParticipantCount from '../../components/ParticipantCount'
 import BudgetTable from '../../components/BudgetTable'
+import { getYearRange } from '../../utils/dateRange'
 
 type Props = {
   register: UseFormRegister<ReportFormData>
@@ -15,6 +16,12 @@ type Props = {
 function ReportSection2({ register, errors, watch, control }: Props) {
 
   const actualStartDate = watch('reportSection2.actualStartDate')
+
+  // 実施時期は「去年から3年間」に制限する（例: 現在2026年なら2025年〜2027年）。
+  // 完了報告は既に実施済みの事業の実績を報告するものなので、
+  // 申請フォーム（現在年起点）とは異なり前年を起点にする。
+  const { min: dateMin, max: dateMax, minYear, maxYear } = getYearRange(new Date().getFullYear() - 1, 3)
+  const dateRangeMessage = `実施時期は${minYear}年〜${maxYear}年の範囲で入力してください`
 
   return (
     <section className="space-y-8">
@@ -97,9 +104,13 @@ function ReportSection2({ register, errors, watch, control }: Props) {
                   <div className="flex flex-col gap-1">
                     <input
                       type="date"
+                      min={dateMin}
+                      max={dateMax}
                       className="w-full md:w-auto p-3 border border-slate-300 rounded-lg bg-white"
                       {...register('reportSection2.actualStartDate', {
                         required: '開始日を入力してください',
+                        validate: (v) =>
+                          !v || (v >= dateMin && v <= dateMax) || dateRangeMessage,
                       })}
                     />
                     {errors.reportSection2?.actualStartDate && (
@@ -110,11 +121,17 @@ function ReportSection2({ register, errors, watch, control }: Props) {
                   <div className="flex flex-col gap-1">
                     <input
                       type="date"
+                      min={dateMin}
+                      max={dateMax}
                       className="w-full md:w-auto p-3 border border-slate-300 rounded-lg bg-white"
                       {...register('reportSection2.actualEndDate', {
                         required: '終了日を入力してください',
-                        validate: (v) =>
-                          !actualStartDate || v >= actualStartDate || '終了日は開始日以降を入力してください',
+                        validate: {
+                          afterStart: (v) =>
+                            !actualStartDate || v >= actualStartDate || '終了日は開始日以降を入力してください',
+                          inRange: (v) =>
+                            !v || (v >= dateMin && v <= dateMax) || dateRangeMessage,
+                        },
                       })}
                     />
                     {errors.reportSection2?.actualEndDate && (

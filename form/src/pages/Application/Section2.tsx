@@ -3,6 +3,7 @@
 import type { UseFormRegister, FieldErrors, UseFormWatch } from 'react-hook-form'
 import type { FormData } from '../../types/form'
 import ParticipantCount from '../../components/ParticipantCount'
+import { getYearRange } from '../../utils/dateRange'
 
 type Props = {
   register: UseFormRegister<FormData>
@@ -14,6 +15,11 @@ function Section2({ register, errors, watch }: Props) {
 
   // 日程の前後チェック用
   const startDate = watch('section2.startDate')
+
+  // 実施時期は「現在年から3年間」に制限する（例: 2026年なら2026年〜2028年）。
+  // 申請事業は今後実施予定のものなので、現在年を起点にする。
+  const { min: dateMin, max: dateMax, minYear, maxYear } = getYearRange(new Date().getFullYear(), 3)
+  const dateRangeMessage = `実施時期は${minYear}年〜${maxYear}年の範囲で入力してください`
 
   return (
     <section className="space-y-8">
@@ -74,9 +80,13 @@ function Section2({ register, errors, watch }: Props) {
                   <div className="flex flex-col gap-1">
                     <input
                       type="date"
+                      min={dateMin}
+                      max={dateMax}
                       className="w-full md:w-auto p-3 border border-slate-300 rounded-lg bg-white"
                       {...register('section2.startDate', {
                         required: '開始日を入力してください',
+                        validate: (v) =>
+                          !v || (v >= dateMin && v <= dateMax) || dateRangeMessage,
                       })}
                     />
                     {errors.section2?.startDate && (
@@ -89,11 +99,17 @@ function Section2({ register, errors, watch }: Props) {
                   <div className="flex flex-col gap-1">
                     <input
                       type="date"
+                      min={dateMin}
+                      max={dateMax}
                       className="w-full md:w-auto p-3 border border-slate-300 rounded-lg bg-white"
                       {...register('section2.endDate', {
                         required: '終了日を入力してください',
-                        validate: (v) =>
-                          !startDate || v >= startDate || '終了日は開始日以降を入力してください',
+                        validate: {
+                          afterStart: (v) =>
+                            !startDate || v >= startDate || '終了日は開始日以降を入力してください',
+                          inRange: (v) =>
+                            !v || (v >= dateMin && v <= dateMax) || dateRangeMessage,
+                        },
                       })}
                     />
                     {errors.section2?.endDate && (
