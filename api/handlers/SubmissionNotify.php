@@ -50,7 +50,7 @@ function handleSubmissionNotify(int $id): void {
     '審査中' => "
 {$toName} 様
 
-「{$project}」の申請を受け付けました。
+「{$project}」の審査を開始いたしました。
 審査中は申請内容の編集ができません。
 審査結果が出次第、改めてご連絡いたします。
 
@@ -59,7 +59,7 @@ function handleSubmissionNotify(int $id): void {
     '承認' => "
 {$toName} 様
 
-「{$project}」の助成金申請が承認されました。
+「{$project}」の助成金申請が受理されました。
 
 ご不明な点がございましたら財団事務局までお問い合わせください。
 ",

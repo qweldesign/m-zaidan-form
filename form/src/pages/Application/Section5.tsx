@@ -133,7 +133,7 @@ function Section5({ register, errors, watch, control, isEditMode }: Props) {
       {/* 送信前の注意 */}
       {confirmed && (
         <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-800 leading-7">
-          送信ボタンを押すと申請が完了します。送信後の内容変更はできませんので、今一度ご確認ください。
+          送信ボタンを押すと申請が完了します。送信内容について、今一度ご確認ください。
         </div>
       )}
 
