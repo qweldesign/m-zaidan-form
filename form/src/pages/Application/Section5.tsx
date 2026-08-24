@@ -52,7 +52,7 @@ function Section5({ register, errors, watch, control, isEditMode }: Props) {
                   日頃の活動が分かる写真
                 </label>
                 <p className="mt-2 text-sm text-slate-500">
-                  JPEG / PNG形式・最大3枚
+                  JPEG / PNG形式・最大3枚 10MB以内
                 </p>
               </td>
               <td className="block md:table-cell p-5">
