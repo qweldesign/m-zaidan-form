@@ -174,4 +174,41 @@ describe('BudgetTable', () => {
     })
   })
 
+  // ============================================================
+  // 助成金要望額の上限チェック（50万円）
+  // ============================================================
+
+  describe('助成金要望額の上限チェック（50万円）', () => {
+    it('入力欄にmax=500000が設定される', () => {
+      render(<BudgetTableWrapper />)
+
+      const grantRequestInput = screen.getAllByRole('spinbutton')[0] as HTMLInputElement
+      expect(grantRequestInput.max).toBe('500000')
+    })
+
+    it('50万円ちょうどなら（使用額合計と一致していれば）バリデーションエラーにならない', async () => {
+      const initialExpenses = [
+        { id: '1', subject: '会場費', amount: 500000, grantUsage: 500000, memo: '' },
+      ]
+      render(<BudgetTableWrapper initialGrantRequest={500000} initialExpenses={initialExpenses} />)
+
+      await userEvent.click(screen.getByRole('button', { name: '検証' }))
+
+      expect(screen.queryByText(/以下で入力してください/)).not.toBeInTheDocument()
+    })
+
+    it('50万円を超えるとバリデーションエラーになる', async () => {
+      const initialExpenses = [
+        { id: '1', subject: '会場費', amount: 600000, grantUsage: 600000, memo: '' },
+      ]
+      render(<BudgetTableWrapper initialGrantRequest={600000} initialExpenses={initialExpenses} />)
+
+      await userEvent.click(screen.getByRole('button', { name: '検証' }))
+
+      expect(
+        await screen.findByText('助成金要望額は500,000円以下で入力してください'),
+      ).toBeInTheDocument()
+    })
+  })
+
 })

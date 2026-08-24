@@ -3,6 +3,9 @@
 import type { UseFormRegister, FieldErrors, UseFormWatch, Control, FieldValues, Path, ArrayPath } from 'react-hook-form'
 import { useFieldArray } from 'react-hook-form'
 
+// 助成金要望額の上限（円）
+const GRANT_REQUEST_MAX = 500000
+
 const INCOME_FIELDS = [
   { label: '助成金要望額',     field: 'income.grantRequest', memoField: 'income.incomeMemo.grantRequest' },
   { label: '会費・会員から',   field: 'income.memberFees',   memoField: 'income.incomeMemo.memberFees'   },
@@ -90,9 +93,18 @@ function BudgetTable<T extends FieldValues>({
                         <input
                           type="number"
                           min={0}
+                          max={field === 'income.grantRequest' ? GRANT_REQUEST_MAX : undefined}
                           className="w-full p-3 border border-slate-300 rounded-lg bg-white"
                           {...register(fullField as Path<T>, {
                             min: { value: 0, message: '0以上を入力してください' },
+                            ...(field === 'income.grantRequest'
+                              ? {
+                                  max: {
+                                    value: GRANT_REQUEST_MAX,
+                                    message: `助成金要望額は${GRANT_REQUEST_MAX.toLocaleString()}円以下で入力してください`,
+                                  },
+                                }
+                              : {}),
                             validate: (v: any, formValues: any) => {
                               if (field !== 'income.grantRequest') return true
                               if (!v || Number(v) <= 0) return '助成金要望額を入力してください'
