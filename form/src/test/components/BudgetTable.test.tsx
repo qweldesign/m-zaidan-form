@@ -9,15 +9,17 @@ import type { FormData } from '../../types/form'
 function BudgetTableWrapper({
   removableFrom = 0,
   initialExpenses = [],
+  initialGrantRequest = 0,
 }: {
   removableFrom?: number
   initialExpenses?: FormData['section3']['expenses']
+  initialGrantRequest?: number
 }) {
-  const { register, watch, control, formState: { errors } } = useForm<FormData>({
+  const { register, watch, control, trigger, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       section3: {
         income: {
-          grantRequest: 0,
+          grantRequest: initialGrantRequest,
           memberFees:   0,
           donations:    0,
           tickets:      0,
@@ -35,14 +37,20 @@ function BudgetTableWrapper({
   })
 
   return (
-    <BudgetTable
-      register={register}
-      errors={errors}
-      watch={watch}
-      control={control}
-      prefix="section3"
-      removableFrom={removableFrom}
-    />
+    <>
+      <BudgetTable
+        register={register}
+        errors={errors}
+        watch={watch}
+        control={control}
+        prefix="section3"
+        removableFrom={removableFrom}
+      />
+      {/* 送信時相当のバリデーションを発火させるための検証ボタン（テスト用） */}
+      <button type="button" onClick={() => trigger('section3.income.grantRequest' as any)}>
+        検証
+      </button>
+    </>
   )
 }
 
@@ -111,6 +119,58 @@ describe('BudgetTable', () => {
 
       const deleteButtons = screen.queryAllByRole('button', { name: '行を削除' })
       expect(deleteButtons.length).toBe(0)
+    })
+  })
+
+  // ============================================================
+  // 検算（助成金要望額 と 助成金使用額合計 の一致チェック）
+  // ============================================================
+  // 「助成金要望額」が入力されているのに支出行の「助成金使用額」が
+  // すべて0（＝合計が0）の場合も、金額の不一致として検出されるべき。
+  // 修正前は「助成金使用額合計 > 0」の場合しか判定していなかったため、
+  // 支出行が未入力のまま要望額だけ入力してもエラーにならなかった。
+
+  describe('検算（助成金要望額と助成金使用額合計の一致チェック）', () => {
+    it('助成金使用額合計が0のままでも、助成金要望額が入力されていれば不一致の案内が表示される', () => {
+      const initialExpenses = [
+        { id: '1', subject: '会場費', amount: 0, grantUsage: 0, memo: '' },
+      ]
+      render(<BudgetTableWrapper initialGrantRequest={100000} initialExpenses={initialExpenses} />)
+
+      expect(screen.getByText(/一致していません/)).toBeInTheDocument()
+    })
+
+    it('助成金要望額と助成金使用額合計が一致していれば案内が表示されない', () => {
+      const initialExpenses = [
+        { id: '1', subject: '会場費', amount: 100000, grantUsage: 100000, memo: '' },
+      ]
+      render(<BudgetTableWrapper initialGrantRequest={100000} initialExpenses={initialExpenses} />)
+
+      expect(screen.queryByText(/一致していません/)).not.toBeInTheDocument()
+    })
+
+    it('助成金使用額合計が0のまま検証すると、助成金要望額の項目がバリデーションエラーになる（従来はエラーにならなかった不具合の修正）', async () => {
+      const initialExpenses = [
+        { id: '1', subject: '会場費', amount: 0, grantUsage: 0, memo: '' },
+      ]
+      render(<BudgetTableWrapper initialGrantRequest={100000} initialExpenses={initialExpenses} />)
+
+      await userEvent.click(screen.getByRole('button', { name: '検証' }))
+
+      expect(
+        await screen.findByText('助成金要望額と支出の部の助成金使用額合計（0円）が一致していません'),
+      ).toBeInTheDocument()
+    })
+
+    it('金額が一致していれば検証してもバリデーションエラーにならない', async () => {
+      const initialExpenses = [
+        { id: '1', subject: '会場費', amount: 100000, grantUsage: 100000, memo: '' },
+      ]
+      render(<BudgetTableWrapper initialGrantRequest={100000} initialExpenses={initialExpenses} />)
+
+      await userEvent.click(screen.getByRole('button', { name: '検証' }))
+
+      expect(screen.queryByText(/一致していません/)).not.toBeInTheDocument()
     })
   })
 

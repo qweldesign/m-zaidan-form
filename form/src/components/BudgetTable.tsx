@@ -93,10 +93,25 @@ function BudgetTable<T extends FieldValues>({
                           className="w-full p-3 border border-slate-300 rounded-lg bg-white"
                           {...register(fullField as Path<T>, {
                             min: { value: 0, message: '0以上を入力してください' },
-                            validate: (v: any) =>
-                              field === 'income.grantRequest' && (!v || Number(v) <= 0)
-                                ? '助成金要望額を入力してください'
-                                : true,
+                            validate: (v: any, formValues: any) => {
+                              if (field !== 'income.grantRequest') return true
+                              if (!v || Number(v) <= 0) return '助成金要望額を入力してください'
+
+                              // 助成金要望額は、支出の部で「この事業に助成金をいくら
+                              // 充てるか」を積み上げた金額（助成金使用額合計）と
+                              // 一致している必要がある。支出行が未入力（＝合計0）の
+                              // 場合も不一致として検出する（合計が0より大きい場合しか
+                              // 判定していなかったのが従来のバグ）。
+                              const currentExpenses =
+                                ((formValues as any)?.[prefix]?.expenses ?? []) as any[]
+                              const currentGrantUsageTotal = currentExpenses.reduce(
+                                (sum, r) => sum + (Number(r?.grantUsage) || 0),
+                                0,
+                              )
+                              return Number(v) === currentGrantUsageTotal
+                                ? true
+                                : `助成金要望額と支出の部の助成金使用額合計（${currentGrantUsageTotal.toLocaleString()}円）が一致していません`
+                            },
                           })}
                         />
                         <span className="text-slate-500 whitespace-nowrap">円</span>
@@ -290,7 +305,7 @@ function BudgetTable<T extends FieldValues>({
         </div>
 
         {/* 検算 */}
-        {grantRequest > 0 && grantUsageTotal > 0 && grantRequest !== grantUsageTotal && (() => {
+        {grantRequest > 0 && grantRequest !== grantUsageTotal && (() => {
           const diff = grantUsageTotal - grantRequest
           return (
             <div className="mx-5 mb-5 p-4 rounded-xl border border-orange-200 bg-orange-50 text-sm text-orange-700">
