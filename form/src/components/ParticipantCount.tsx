@@ -52,7 +52,7 @@ function ParticipantCount<T extends FieldValues>({
               <input
                 type="number"
                 min={0}
-                className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                className="w-full px-2 py-3 border border-slate-300 rounded-lg bg-white text-right"
                 {...register(countField as Path<T>, {
                   min: { value: 0, message: '0以上を入力してください' },
                 })}
@@ -66,7 +66,7 @@ function ParticipantCount<T extends FieldValues>({
               <input
                 type="number"
                 min={0}
-                className="w-full p-3 border border-slate-300 rounded-lg bg-white"
+                className="w-full px-2 py-3 border border-slate-300 rounded-lg bg-white text-right"
                 {...register(daysField as Path<T>, {
                   min: { value: 0, message: '0以上を入力してください' },
                 })}
@@ -81,7 +81,7 @@ function ParticipantCount<T extends FieldValues>({
                 type="number"
                 readOnly
                 value={total}
-                className="w-full p-3 border border-slate-200 rounded-lg bg-sky-50 text-sky-800 font-bold"
+                className="w-full px-2 py-3 border border-slate-200 rounded-lg bg-sky-50 text-sky-800 font-bold text-right"
               />
               <span className="text-slate-500 whitespace-nowrap">名</span>
             </div>
