@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { useForm } from 'react-hook-form'
 import ParticipantCount from '../../components/ParticipantCount'
@@ -140,6 +141,45 @@ describe('ParticipantCount', () => {
 
       const readOnlyInputs = document.querySelectorAll('input[readonly]')
       expect((readOnlyInputs[1] as HTMLInputElement).value).toBe('20')
+    })
+  })
+
+  // ============================================================
+  // 数値入力（フォーカス維持の回帰テスト）
+  // ============================================================
+  // 「人数」「日数」の行コンポーネント（CountRow）が以前はParticipantCountの
+  // 関数本体内で定義されていたため、watch()の値が変わって再レンダーされる
+  // （＝1文字入力するたび）ごとに毎回新しい関数として扱われ、既存の<input>が
+  // アンマウント・再マウントされてフォーカスが外れていた。そのため実際の
+  // ブラウザでは1文字入力するとフォーカスが外れ、1桁しか入力できなかった。
+
+  describe('数値入力（フォーカス維持）', () => {
+    it('人数欄に複数桁の数値を続けて入力できる', async () => {
+      render(<ParticipantCountWrapper />)
+
+      const countInputs = document.querySelectorAll(
+        'input[type="number"]:not([readonly])',
+      ) as NodeListOf<HTMLInputElement>
+      const organizerCountInput = countInputs[0]
+
+      await userEvent.clear(organizerCountInput)
+      await userEvent.type(organizerCountInput, '123')
+
+      expect(organizerCountInput.value).toBe('123')
+    })
+
+    it('日数欄に複数桁の数値を続けて入力できる', async () => {
+      render(<ParticipantCountWrapper />)
+
+      const dayInputs = document.querySelectorAll(
+        'input[type="number"]:not([readonly])',
+      ) as NodeListOf<HTMLInputElement>
+      const organizerDaysInput = dayInputs[1]
+
+      await userEvent.clear(organizerDaysInput)
+      await userEvent.type(organizerDaysInput, '45')
+
+      expect(organizerDaysInput.value).toBe('45')
     })
   })
 

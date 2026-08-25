@@ -16,30 +16,41 @@ type Props<T extends FieldValues> = {
   sectionTitle?: string
 }
 
-function ParticipantCount<T extends FieldValues>({
+// ドット区切りのフィールド名（例: 'section2.organizer.count'）から
+// errorsオブジェクトの該当箇所を辿って取得する
+function getFieldError(errors: FieldErrors<FieldValues>, name: string) {
+  return name.split('.').reduce<any>((obj, key) => obj?.[key], errors)
+}
+
+type CountRowProps<T extends FieldValues> = {
+  register: UseFormRegister<T>
+  errors: FieldErrors<T>
+  label: string
+  countField: string
+  daysField: string
+  total: number
+}
+
+// 「人数」「日数」「延べ人数」の1行分。
+// 以前はParticipantCountの関数本体内でこの行コンポーネントを定義していたが、
+// そうすると（watch()の値が変わって再レンダーされるたびに）毎回新しい関数と
+// してReactに認識され、既存のDOM要素（<input>）が再利用されずアンマウント→
+// 再マウントされていた。その結果、数値入力中にフォーカスが外れてしまい、
+// 「1文字入力するたびにフォーカスが外れて1桁しか入力できない」不具合が
+// 発生していた。コンポーネント本体の外（モジュールスコープ）に定義することで、
+// 毎回同じ関数として扱われるようにし、DOM要素が再利用されるようにする。
+function CountRow<T extends FieldValues>({
   register,
-  watch,
-  organizer,
-  participant,
-  sectionTitle = '参加人数',
-}: Props<T>) {
+  errors,
+  label,
+  countField,
+  daysField,
+  total,
+}: CountRowProps<T>) {
+  const countError = getFieldError(errors as FieldErrors<FieldValues>, countField)
+  const daysError  = getFieldError(errors as FieldErrors<FieldValues>, daysField)
 
-  const organizerCount   = Number(watch(organizer.countField as Path<T>))   || 0
-  const organizerDays    = Number(watch(organizer.daysField  as Path<T>))   || 0
-  const participantCount = Number(watch(participant.countField as Path<T>)) || 0
-  const participantDays  = Number(watch(participant.daysField  as Path<T>)) || 0
-
-  const CountRow = ({
-    label,
-    countField,
-    daysField,
-    total,
-  }: {
-    label: string
-    countField: string
-    daysField: string
-    total: number
-  }) => (
+  return (
     <tr className="block md:table-row">
       <td className="block md:table-cell p-5 align-top md:w-70">
         <label className="block font-bold">{label}</label>
@@ -59,6 +70,9 @@ function ParticipantCount<T extends FieldValues>({
               />
               <span className="text-slate-500 whitespace-nowrap">名</span>
             </div>
+            {countError?.message && (
+              <p className="text-red-500 text-sm mt-1">{countError.message as string}</p>
+            )}
           </div>
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
             <label className="block mb-2 text-sm font-bold text-slate-700">日数</label>
@@ -73,6 +87,9 @@ function ParticipantCount<T extends FieldValues>({
               />
               <span className="text-slate-500 whitespace-nowrap">日</span>
             </div>
+            {daysError?.message && (
+              <p className="text-red-500 text-sm mt-1">{daysError.message as string}</p>
+            )}
           </div>
           <div className="p-4 rounded-xl border border-sky-200 bg-sky-50">
             <label className="block mb-2 text-sm font-bold text-sky-800">延べ人数</label>
@@ -90,6 +107,21 @@ function ParticipantCount<T extends FieldValues>({
       </td>
     </tr>
   )
+}
+
+function ParticipantCount<T extends FieldValues>({
+  register,
+  errors,
+  watch,
+  organizer,
+  participant,
+  sectionTitle = '参加人数',
+}: Props<T>) {
+
+  const organizerCount   = Number(watch(organizer.countField as Path<T>))   || 0
+  const organizerDays    = Number(watch(organizer.daysField  as Path<T>))   || 0
+  const participantCount = Number(watch(participant.countField as Path<T>)) || 0
+  const participantDays  = Number(watch(participant.daysField  as Path<T>)) || 0
 
   return (
     <section className="rounded-2xl border border-sky-100 bg-white overflow-hidden shadow-sm">
@@ -99,12 +131,16 @@ function ParticipantCount<T extends FieldValues>({
       <table className="block md:table w-full border-collapse">
         <tbody className="block md:table-row-group">
           <CountRow
+            register={register}
+            errors={errors}
             label="申請団体側人数"
             countField={organizer.countField}
             daysField={organizer.daysField}
             total={organizerCount * organizerDays}
           />
           <CountRow
+            register={register}
+            errors={errors}
             label="参加側人数"
             countField={participant.countField}
             daysField={participant.daysField}
