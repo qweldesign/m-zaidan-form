@@ -25,7 +25,7 @@ function PhotoSlots<T extends FieldValues>({ control, errors, name, maxSlots, is
             if (!isEditMode && (!files || files.length === 0)) return '写真を1枚以上アップロードしてください'
             if (files && files.length > 3) return '写真は最大3枚までです'
             for (const file of files ?? []) {
-              if (file.size > 10 * 1024 * 1024) return `${file.name} のファイルサイズが10MBを超えています`
+              if (file.size > 5 * 1024 * 1024) return `${file.name} のファイルサイズが5MBを超えています`
             }
             return true
           },

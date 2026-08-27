@@ -41,7 +41,7 @@ function ReportSection3({ register, errors, watch, control }: Props) {
                 <label className="block font-bold">
                   申請事業の活動実施写真<span className="text-red-500 ml-1">*</span>
                 </label>
-                <p className="mt-2 text-sm text-slate-500">JPEG / PNG形式・1〜2枚 10MB以内</p>
+                <p className="mt-2 text-sm text-slate-500">JPEG / PNG形式・1〜2枚 5MB以内</p>
               </td>
               <td className="block md:table-cell p-5">
 
