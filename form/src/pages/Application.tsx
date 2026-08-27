@@ -152,6 +152,15 @@ function Application({ editToken }: Props) {
     enabled: tokenResolved,
   })
 
+  // 「次へ」「戻る」「一時保存」は、以前の送信失敗エラー（submitError）を
+  // 引きずったまま画面に表示し続けてしまう不具合があったため、
+  // ユーザーが自発的にステップを移動・保存する操作をした時点でクリアする。
+  // これが無いと、1回送信に失敗した後どのステップに移動してもエラー文言が
+  // 表示され続け、あたかも全項目でエラーが起きているように見えてしまう。
+  const handleNextClick = () => { setSubmitError(null); handleNext() }
+  const handleBackClick = () => { setSubmitError(null); handleBack() }
+  const handleSaveClick = () => { setSubmitError(null); handleSave() }
+
   // フォーム全体のバリデーションに失敗した場合（非表示のステップに不備がある場合を含む）、
   // 該当ステップへ移動してエラーを可視化する。これが無いと送信ボタンが無反応に見えてしまう。
   const onInvalid = (formErrors: FieldErrors<FormSchema>) => {
@@ -342,18 +351,18 @@ function Application({ editToken }: Props) {
 
         <div className="flex justify-center gap-4 mt-6">
           {step !== 1 && step !== 6 && (
-            <button type="button" onClick={handleBack}
+            <button type="button" onClick={handleBackClick}
               className="block w-3xs my-6 py-3 rounded bg-orange-500 hover:bg-orange-200 text-white hover:text-black text-center transition-colors duration-300">
               戻る
             </button>
           )}
           {step < 5 && (
             <>
-              <button type="button" onClick={handleSave}
+              <button type="button" onClick={handleSaveClick}
                 className="block w-3xs my-6 py-3 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-center transition-colors duration-300">
                 一時保存
               </button>
-              <button type="button" onClick={handleNext}
+              <button type="button" onClick={handleNextClick}
                 className="block w-3xs my-6 py-3 rounded bg-sky-500 hover:bg-sky-200 text-white hover:text-black text-center transition-colors duration-300">
                 次へ
               </button>
@@ -361,7 +370,7 @@ function Application({ editToken }: Props) {
           )}
           {step === 5 && (
             <>
-              <button type="button" onClick={handleSave} disabled={isSubmitting}
+              <button type="button" onClick={handleSaveClick} disabled={isSubmitting}
                 className="block w-3xs my-6 py-3 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-center transition-colors duration-300">
                 一時保存
               </button>
