@@ -53,7 +53,18 @@ class SubmissionPutByTokenTest extends TestCase {
       ]),
       'section4_json' => json_encode([]),
     ];
-    $_FILES = ['photos' => ['error' => [], 'tmp_name' => [], 'name' => []]];
+    // 要望申請は写真・PDF5種が必須になったため、全て揃った状態で作成する。
+    // これによりこのファイル内の各PUTテストは、編集時にファイルを
+    // 再送しなくても「マージ後の最終状態」の必須チェックを満たせる
+    // （＝既存ファイルが引き継がれるという通常の編集フローを再現できる）。
+    $_FILES = [
+      'photos'          => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/photo.jpg'], 'name' => ['photo.jpg']],
+      'regulations'     => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/regulations.pdf',     'name' => 'regulations.pdf'],
+      'activityReport'  => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/activityReport.pdf',  'name' => 'activityReport.pdf'],
+      'financialReport' => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/financialReport.pdf', 'name' => 'financialReport.pdf'],
+      'activityPlan'    => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/activityPlan.pdf',    'name' => 'activityPlan.pdf'],
+      'financialPlan'   => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/financialPlan.pdf',   'name' => 'financialPlan.pdf'],
+    ];
 
     ob_start();
     handlePost();
@@ -248,8 +259,15 @@ class SubmissionPutByTokenTest extends TestCase {
     ];
     $tmpPdf = sys_get_temp_dir() . '/repro_regulations.pdf';
     file_put_contents($tmpPdf, '%PDF-1.4 dummy');
+    // 要望申請は写真・PDF5種が必須になったため、regulations以外もダミーで揃える
+    // （このテストの主眼は「編集時に既存ファイルが保持されるか」のため）
     $_FILES = [
-      'regulations' => ['error' => UPLOAD_ERR_OK, 'tmp_name' => $tmpPdf, 'name' => 'kiyaku.pdf'],
+      'photos'          => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/photo.jpg'], 'name' => ['photo.jpg']],
+      'regulations'     => ['error' => UPLOAD_ERR_OK, 'tmp_name' => $tmpPdf, 'name' => 'kiyaku.pdf'],
+      'activityReport'  => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/activityReport.pdf',  'name' => 'activityReport.pdf'],
+      'financialReport' => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/financialReport.pdf', 'name' => 'financialReport.pdf'],
+      'activityPlan'    => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/activityPlan.pdf',    'name' => 'activityPlan.pdf'],
+      'financialPlan'   => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/financialPlan.pdf',   'name' => 'financialPlan.pdf'],
     ];
 
     ob_start();
@@ -448,8 +466,14 @@ class SubmissionPutByTokenTest extends TestCase {
       $this->assertNotEmpty($section5['docs']['regulations'] ?? null);
       $this->assertNotEmpty($section5['photos'] ?? null);
 
-      // 実際にファイルが物理的に保存されていることも確認する
-      $regPath = UPLOAD_DIR . preg_replace('#^uploads/#', '', (is_array($section5['docs']['regulations']) ? $section5['docs']['regulations'][0] : $section5['docs']['regulations']));
+      // 実際にファイルが物理的に保存されていることも確認する。
+      // 申請作成時（createSubmission()）にも regulations のダミーが1件
+      // 登録されているため、マージ後の配列には2件並ぶ。追加マージは常に
+      // 末尾に追記される仕様なので、今回のPUTで追加された分は最後の要素になる。
+      $regulationsDocs = is_array($section5['docs']['regulations'])
+        ? $section5['docs']['regulations']
+        : [$section5['docs']['regulations']];
+      $regPath = UPLOAD_DIR . preg_replace('#^uploads/#', '', end($regulationsDocs));
       $this->assertFileExists($regPath);
       $this->assertStringContainsString('dummy regulations', file_get_contents($regPath));
     } finally {

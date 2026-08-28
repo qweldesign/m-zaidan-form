@@ -179,6 +179,8 @@ form/
 
 そのため、同じ書類フィールド（例：`docs.regulations`）へ複数回ファイルを追加すると、そのフィールドの値は文字列1件ではなく配列（複数件）になる。詳細は後述の DB スキーマの節を参照。
 
+**添付資料の必須チェック**：新規申請（`POST /api/submissions`）・新規の完了報告提出（`POST /api/reports`）は、`Validator::validateSubmission()` / `Validator::validateReport()` によりサーバー側でも写真・PDF等の必須チェックを行う。過去に `validateSubmission()` にはこのチェックが無く、写真・PDFを1件も添付しない要望申請がAPI側で受理されてしまう不具合があった。編集（`PUT /api/submissions/edit/:token` ・ `PUT /api/reports/edit/:token`）は前述の通りファイルを追加マージする方式のため「今回アップロードされたか」では判定できず、代わりに `Validator::validateSubmissionFiles()` / `Validator::validateReportFiles()` が**マージ後の最終状態**（既存ファイル＋今回追加分）に対して「必須の添付が最低1件はあるか」を検証する。これが無いと、写真・PDFが1件も無いまま作成された申請を、添付を追加しないまま何度でも更新・確定できてしまう。
+
 **実装メモ**：PHPは `POST` メソッドの場合のみ `multipart/form-data` のボディを自動的に `$_POST` / `$_FILES` へパースする。`PUT` では自動パースされないため、`api/helpers/RequestBody.php` の `resolveRequestBody()` が `$_POST` / `$_FILES` が空の場合に `php://input` を手動でパースするフォールバックを提供している。この2つのPUTハンドラを変更する際は、必ず `resolveRequestBody()` 経由でリクエストボディを取得すること（直接 `$_POST` / `$_FILES` を参照すると、実際のPUTリクエストでは常に空になる）。
 
 **実装メモ（POSTの場合も注意）**：`POST` は自動パースされるが、リクエスト全体のサイズが `post_max_size` を超えると、PHPは `$_POST` / `$_FILES` を丸ごと空にする（エラーにはならず処理は継続する）。要望申請フォームは写真・PDFを複数同時アップロードできるため、本番サーバーの `post_max_size` が小さいと、大きめの写真を数枚添付しただけでこの状態になり得る。この場合 `SubmissionPost.php` の `Validator::validateSubmission($body)` は「団体名称は必須です」のように**ほぼ全項目が必須エラー**として返る（実際には入力済みでも、サーバー側で受信できていないだけ）。アップロードサイズ上限の設定は「セットアップ」の節を参照。

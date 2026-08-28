@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../helpers/RequestBody.php';
+require_once __DIR__ . '/../helpers/Validator.php';
 
 function handleReportPutByToken(string $token): void {
   $db   = getDB();
@@ -23,24 +24,34 @@ function handleReportPutByToken(string $token): void {
   // $_POST / $_FILES へパースしないため、手動で取得する
   [$body, $files] = resolveRequestBody();
 
+  $s1 = json_decode($body['report_section1_json'] ?? '{}', true);
+
+  // report_section2_json が送られてこなかった／不正なJSONだった場合は、
+  // ほとんどのフィールドが空になってしまうのを防ぐため既存データにフォールバックする
+  // （テキスト項目は送信内容で上書きする、という通常時の仕様はそのまま維持される）
+  $currentSection2 = json_decode($current['report_section2_json'], true) ?? [];
+  $s2 = isset($body['report_section2_json'])
+    ? (json_decode($body['report_section2_json'], true) ?? $currentSection2)
+    : $currentSection2;
+
+  // 写真・領収書は section2 の JSON では送られてこないため、
+  // 既存データを引き継いだうえで新規アップロード分を追加マージする
+  $s2['photos']     = $currentSection2['photos']   ?? [];
+  $s2['receipts']   = $currentSection2['receipts'] ?? [];
+  $s2 = mergeReportUploadedFiles($s2, $files);
+
+  // 編集時は毎回ファイルを選び直す必要はないが（既存ファイルは維持される）、
+  // マージ後の最終状態として写真・領収書が最低1件も無い場合はエラーにする。
+  // これが無いと、写真・領収書が1件も無いまま作成された完了報告を、
+  // 添付を追加しないまま何度でも更新できてしまう。
+  $fileErrors = Validator::validateReportFiles($s2);
+  if (!empty($fileErrors)) {
+    Response::error(implode(' / ', $fileErrors), 422);
+    return;
+  }
+
   $db->beginTransaction();
   try {
-    $s1 = json_decode($body['report_section1_json'] ?? '{}', true);
-
-    // report_section2_json が送られてこなかった／不正なJSONだった場合は、
-    // ほとんどのフィールドが空になってしまうのを防ぐため既存データにフォールバックする
-    // （テキスト項目は送信内容で上書きする、という通常時の仕様はそのまま維持される）
-    $currentSection2 = json_decode($current['report_section2_json'], true) ?? [];
-    $s2 = isset($body['report_section2_json'])
-      ? (json_decode($body['report_section2_json'], true) ?? $currentSection2)
-      : $currentSection2;
-
-    // 写真・領収書は section2 の JSON では送られてこないため、
-    // 既存データを引き継いだうえで新規アップロード分を追加マージする
-    $s2['photos']     = $currentSection2['photos']   ?? [];
-    $s2['receipts']   = $currentSection2['receipts'] ?? [];
-    $s2 = mergeReportUploadedFiles($s2, $files);
-
     $expenses        = $s2['expenses']  ?? [];
     $totalExpense    = array_sum(array_column($expenses, 'amount'));
     $totalGrantUsage = array_sum(array_column($expenses, 'grantUsage'));

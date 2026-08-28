@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../helpers/RequestBody.php';
+require_once __DIR__ . '/../helpers/Validator.php';
 
 function handlePutByToken(string $token): void {
   $db = getDB();
@@ -30,6 +31,16 @@ function handlePutByToken(string $token): void {
   // ファイルアップロード（追加モード）
   $section5 = json_decode($current['section5_json'], true) ?? ['photos' => [], 'docs' => []];
   $section5 = mergeUploadedFiles($section5, $files);
+
+  // 編集時は毎回ファイルを選び直す必要はないが（既存ファイルは維持される）、
+  // マージ後の最終状態として必須の添付が最低1件も無い場合はエラーにする。
+  // これが無いと、写真・PDFが1件も無いまま作成された申請（フォーム側の
+  // 不具合や直接のAPI操作等）を、添付を追加しないまま何度でも更新できてしまう。
+  $fileErrors = Validator::validateSubmissionFiles($section5);
+  if (!empty($fileErrors)) {
+    Response::error(implode(' / ', $fileErrors), 422);
+    return;
+  }
 
   $db->beginTransaction();
   try {

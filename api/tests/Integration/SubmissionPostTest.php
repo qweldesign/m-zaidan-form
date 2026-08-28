@@ -50,6 +50,23 @@ class SubmissionPostTest extends TestCase {
     ];
   }
 
+  // 添付資料（写真1枚＋PDF5種）が全て揃っている状態の $_FILES モック。
+  // 新規申請（POST）では写真・PDF5種がすべて必須になったため、
+  // 正常系のテストではこれを設定する。move_uploaded_file() は
+  // テスト環境では本物のアップロードではないため実際には失敗するが、
+  // uploadFiles() は戻り値を見ずにパスを記録するだけなので、
+  // バリデーション・DB保存の検証には影響しない。
+  private function validFilesUpload(): array {
+    return [
+      'photos'          => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/photo.jpg'], 'name' => ['photo.jpg']],
+      'regulations'     => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/regulations.pdf',     'name' => 'regulations.pdf'],
+      'activityReport'  => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/activityReport.pdf',  'name' => 'activityReport.pdf'],
+      'financialReport' => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/financialReport.pdf', 'name' => 'financialReport.pdf'],
+      'activityPlan'    => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/activityPlan.pdf',    'name' => 'activityPlan.pdf'],
+      'financialPlan'   => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/financialPlan.pdf',   'name' => 'financialPlan.pdf'],
+    ];
+  }
+
   private function validSection3(): array {
     return [
       'income' => [
@@ -96,9 +113,7 @@ class SubmissionPostTest extends TestCase {
       'section3_json' => json_encode($this->validSection3()),
       'section4_json' => json_encode([]),
     ];
-    $_FILES = [
-      'photos' => ['error' => [], 'tmp_name' => [], 'name' => []],
-    ];
+    $_FILES = $this->validFilesUpload();
 
     $response = $this->callHandlePost();
 
@@ -130,9 +145,7 @@ class SubmissionPostTest extends TestCase {
       'section3_json' => json_encode($this->validSection3()),
       'section4_json' => json_encode([]),
     ];
-    $_FILES = [
-      'photos' => ['error' => [], 'tmp_name' => [], 'name' => []],
-    ];
+    $_FILES = $this->validFilesUpload();
 
     $this->callHandlePost();
 
@@ -150,9 +163,7 @@ class SubmissionPostTest extends TestCase {
       'section3_json' => json_encode($this->validSection3()),
       'section4_json' => json_encode([]),
     ];
-    $_FILES = [
-      'photos' => ['error' => [], 'tmp_name' => [], 'name' => []],
-    ];
+    $_FILES = $this->validFilesUpload();
 
     // 1件目
     $this->callHandlePost();
@@ -189,7 +200,30 @@ class SubmissionPostTest extends TestCase {
     $count = $stmt->fetch()['cnt'];
     $this->assertEquals(0, $count);
   }
-  
+
+  // 過去に、写真・PDFを1件も添付しない要望申請がAPI側で受理されてしまう
+  // 不具合があった（Validator::validateSubmission() に添付資料のチェックが
+  // 一切無かったため）。この不具合が再発していないことを確認する。
+  public function test_異常系_添付資料が1件も無ければDBに保存されない(): void {
+    $_POST = [
+      'section1_json' => json_encode($this->validSection1()),
+      'section2_json' => json_encode($this->validSection2()),
+      'section3_json' => json_encode($this->validSection3()),
+      'section4_json' => json_encode([]),
+    ];
+    $_FILES = [];  // 写真もPDFも一切添付しない
+
+    $response = $this->callHandlePost();
+
+    $this->assertArrayHasKey('error', $response);
+    $this->assertStringContainsString('活動写真は必須です', $response['error']);
+
+    $stmt  = $this->db->query('SELECT COUNT(*) as cnt FROM submissions');
+    $count = $stmt->fetch()['cnt'];
+    $this->assertEquals(0, $count);
+  }
+
+
   public function test_正常系_same_as_representativeがtrueのとき1が保存される(): void {
     $s1 = $this->validSection1();
     $s1['sameAsRepresentative'] = true;
@@ -200,7 +234,7 @@ class SubmissionPostTest extends TestCase {
       'section3_json' => json_encode($this->validSection3()),
       'section4_json' => json_encode([]),
     ];
-    $_FILES = ['photos' => ['error' => [], 'tmp_name' => [], 'name' => []]];
+    $_FILES = $this->validFilesUpload();
 
     $this->callHandlePost();
 
@@ -220,7 +254,7 @@ class SubmissionPostTest extends TestCase {
       'section3_json' => json_encode($this->validSection3()),
       'section4_json' => json_encode([]),
     ];
-    $_FILES = ['photos' => ['error' => [], 'tmp_name' => [], 'name' => []]];
+    $_FILES = $this->validFilesUpload();
 
     $this->callHandlePost();
 
@@ -244,9 +278,7 @@ class SubmissionPostTest extends TestCase {
       'section3_json' => json_encode($section3),
       'section4_json' => json_encode([]),
     ];
-    $_FILES = [
-      'photos' => ['error' => [], 'tmp_name' => [], 'name' => []],
-    ];
+    $_FILES = $this->validFilesUpload();
 
     $this->callHandlePost();
 
@@ -265,9 +297,7 @@ class SubmissionPostTest extends TestCase {
       'section3_json' => json_encode($this->validSection3()),
       'section4_json' => json_encode([]),
     ];
-    $_FILES = [
-      'photos' => ['error' => [], 'tmp_name' => [], 'name' => []],
-    ];
+    $_FILES = $this->validFilesUpload();
 
     $response = $this->callHandlePost();
     $id       = $response['data']['id'];
