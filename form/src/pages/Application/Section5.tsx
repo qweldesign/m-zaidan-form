@@ -57,19 +57,16 @@ function Section5({ register, errors, watch, control, isEditMode }: Props) {
               </td>
               <td className="block md:table-cell p-5">
 
+                {/* エラーメッセージは PhotoSlots 内部で表示されるため、
+                    ここでの重複表示は行わない（以前は同じメッセージが
+                    二重に表示されてしまっていた） */}
                 <PhotoSlots
                   control={control}
                   errors={errors}
                   name="section5.photos"
                   maxSlots={3}
-                  isEditMode
+                  isEditMode={isEditMode}
                 />
-
-                {errors.section5?.photos && (
-                  <p className="text-red-500 text-sm mt-2">
-                    {errors.section5.photos.message as string}
-                  </p>
-                )}
 
               </td>
             </tr>

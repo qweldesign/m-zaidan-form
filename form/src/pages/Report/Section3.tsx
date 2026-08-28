@@ -13,7 +13,7 @@ type Props = {
   isEditMode?: boolean
 }
 
-function ReportSection3({ register, errors, watch, control }: Props) {
+function ReportSection3({ register, errors, watch, control, isEditMode }: Props) {
 
   const confirmed = watch('reportSection3.confirmed')
 
@@ -45,17 +45,16 @@ function ReportSection3({ register, errors, watch, control }: Props) {
               </td>
               <td className="block md:table-cell p-5">
 
+                {/* エラーメッセージは PhotoSlots 内部で表示されるため、
+                    ここでの重複表示は行わない（以前は同じメッセージが
+                    二重に表示されてしまっていた） */}
                 <PhotoSlots
                   control={control}
                   errors={errors}
                   name="reportSection3.photos"
                   maxSlots={2}
-                  isEditMode
+                  isEditMode={isEditMode}
                 />
-
-                {errors.reportSection3?.photos && (
-                  <p className="text-red-500 text-sm mt-2">{errors.reportSection3.photos.message as string}</p>
-                )}
               </td>
             </tr>
           </tbody>
@@ -84,7 +83,7 @@ function ReportSection3({ register, errors, watch, control }: Props) {
                   control={control}
                   errors={errors}
                   name="reportSection3.receipts"
-                  isEditMode
+                  isEditMode={isEditMode}
                 />
               </td>
             </tr>
