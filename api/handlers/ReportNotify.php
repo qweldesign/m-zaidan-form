@@ -1,12 +1,14 @@
 <?php
 
-require_once __DIR__ . '/../helpers/Mailer.php';
+if (!class_exists('Mailer')) {
+  require_once __DIR__ . '/../helpers/Mailer.php';
+}
 
 function handleReportNotify(int $id): void {
   $db = getDB();
 
   $stmt = $db->prepare("
-    SELECT status, contact_name, contact_email,
+    SELECT status, team_name, contact_name, contact_email,
            project_name, edit_token
     FROM reports WHERE id = :id AND is_deleted = 0
   ");
@@ -20,6 +22,7 @@ function handleReportNotify(int $id): void {
   }
 
   $status    = $row['status'];
+  $teamName  = $row['team_name'];
   $toName    = $row['contact_name'];
   $toEmail   = $row['contact_email'];
   $project   = $row['project_name'];
@@ -33,6 +36,7 @@ function handleReportNotify(int $id): void {
 
   $bodies = [
     '要修正' => "
+{$teamName}
 {$toName} 様
 
 「{$project}」の完了報告について、内容の修正をお願いします。
@@ -43,6 +47,7 @@ function handleReportNotify(int $id): void {
 ご不明な点がございましたら財団事務局までお問い合わせください。
 ",
     '確認済' => "
+{$teamName}
 {$toName} 様
 
 「{$project}」の完了報告を確認しました。

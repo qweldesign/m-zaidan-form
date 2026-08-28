@@ -8,7 +8,7 @@ function handleSubmissionNotify(int $id): void {
   $db = getDB();
 
   $stmt = $db->prepare("
-    SELECT status, contact_name, contact_email,
+    SELECT status, team_name, contact_name, contact_email,
            representative_name, representative_email,
            project_name, edit_token
     FROM submissions WHERE id = :id AND is_deleted = 0
@@ -23,6 +23,7 @@ function handleSubmissionNotify(int $id): void {
   }
 
   $status    = $row['status'];
+  $teamName  = $row['team_name'];
   $toName    = $row['contact_name'] ?: $row['representative_name'];
   $toEmail   = $row['contact_email'] ?: $row['representative_email'];
   $project   = $row['project_name'];
@@ -38,6 +39,7 @@ function handleSubmissionNotify(int $id): void {
 
   $bodies = [
     '審査前' => "
+{$teamName}
 {$toName} 様
 
 「{$project}」の申請内容が編集可能な状態に戻りました。
@@ -48,6 +50,7 @@ function handleSubmissionNotify(int $id): void {
 ご不明な点がございましたら財団事務局までお問い合わせください。
 ",
     '審査中' => "
+{$teamName}
 {$toName} 様
 
 「{$project}」の審査を開始いたしました。
@@ -57,6 +60,7 @@ function handleSubmissionNotify(int $id): void {
 ご不明な点がございましたら財団事務局までお問い合わせください。
 ",
     '承認' => "
+{$teamName}
 {$toName} 様
 
 「{$project}」の助成金申請が受理されました。
@@ -64,6 +68,7 @@ function handleSubmissionNotify(int $id): void {
 ご不明な点がございましたら財団事務局までお問い合わせください。
 ",
     '否決' => "
+{$teamName}
 {$toName} 様
 
 「{$project}」の助成金申請について、

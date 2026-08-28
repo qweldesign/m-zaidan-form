@@ -4,10 +4,11 @@ use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../../handlers/SubmissionPost.php';
-require_once __DIR__ . '/../../handlers/SubmissionPatch.php';
-require_once __DIR__ . '/../../handlers/SubmissionNotify.php';
+require_once __DIR__ . '/../../handlers/ReportPost.php';
+require_once __DIR__ . '/../../handlers/ReportPatch.php';
+require_once __DIR__ . '/../../handlers/ReportNotify.php';
 
-class SubmissionNotifyTest extends TestCase {
+class ReportNotifyTest extends TestCase {
 
   private PDO $db;
 
@@ -22,13 +23,13 @@ class SubmissionNotifyTest extends TestCase {
   // ヘルパーメソッド
   //
 
-  private function createSubmission(): int {
+  private function createSubmission(): array {
     $_POST = [
       'section1_json' => json_encode([
         'teamName'            => 'ギャラリーはりいしゃ運営委員会',
-        'teamNameKana'        => 'ギャラリーハリイシャウンエイイインカイ',
-        'teamPostalCode'      => '910-3553',
-        'teamAddress'         => '福井県福井市蒲生町1-42',
+        'teamNameKana'        => 'テストブンカキョウカイ',
+        'teamPostalCode'      => '910-0000',
+        'teamAddress'         => '福井県福井市中央1-1',
         'establishedYear'     => '2000',
         'activityCategory'    => 'その他市民活動',
         'representativeName'  => '伊藤 大悟',
@@ -69,20 +70,61 @@ class SubmissionNotifyTest extends TestCase {
     handlePost();
     $output   = ob_get_clean();
     $response = json_decode($output, true);
+    $id       = $response['data']['id'];
+
+    $stmt = $this->db->prepare('SELECT edit_token FROM submissions WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $row  = $stmt->fetch();
+
+    return ['id' => $id, 'edit_token' => $row['edit_token']];
+  }
+
+  private function createReport(string $submissionToken): int {
+    $_POST = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+        'contactPhone' => '090-1234-5678',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'activityCategory'=> 'その他市民活動',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => 'ギャラリーはりいしゃ',
+        'actualDetail'    => '実施内容のテキスト',
+        'income' => [
+          'grantRequest' => 100000, 'memberFees' => 0, 'donations' => 0, 'tickets' => 0,
+          'incomeMemo'   => ['grantRequest' => '', 'memberFees' => '', 'donations' => '', 'tickets' => ''],
+        ],
+        'expenses'   => [],
+        'budgetNote' => '',
+      ]),
+      'submission_token' => $submissionToken,
+    ];
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
+      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
+    ];
+
+    ob_start();
+    handleReportPost();
+    $output   = ob_get_clean();
+    $response = json_decode($output, true);
     return $response['data']['id'];
   }
 
-  private function setSubmissionStatus(int $id, string $status): void {
+  private function setReportStatus(int $id, string $status): void {
     $GLOBALS['_TEST_INPUT'] = json_encode(['status' => $status]);
     ob_start();
-    handlePatch($id);
+    handleReportPatch($id);
     ob_get_clean();
   }
 
-  private function callHandleNotify(int $id, array $body = []): array {
-    $GLOBALS['_TEST_INPUT'] = json_encode($body);
+  private function callHandleNotify(int $id): array {
     ob_start();
-    handleSubmissionNotify($id);
+    handleReportNotify($id);
     $output = ob_get_clean();
     return json_decode($output, true) ?? [];
   }
@@ -91,61 +133,37 @@ class SubmissionNotifyTest extends TestCase {
   // テスト
   //
 
-  public function test_正常系_PDF添付なしで通知メールが送信される(): void {
-    $id = $this->createSubmission();
-    $this->setSubmissionStatus($id, '審査中');
+  public function test_正常系_通知メールが送信される(): void {
+    $submission = $this->createSubmission();
+    $reportId   = $this->createReport($submission['edit_token']);
+    $this->setReportStatus($reportId, '要修正');
 
-    $response = $this->callHandleNotify($id);
-
-    $this->assertTrue($response['data']['sent']);
-    $this->assertCount(1, Mailer::$statusNotifications);
-    $this->assertNull(Mailer::$statusNotifications[0]['attachment']);
-  }
-
-  public function test_正常系_審査中への変更でPDFが添付される(): void {
-    $id = $this->createSubmission();
-    $this->setSubmissionStatus($id, '審査中');
-
-    $pdfContent = '%PDF-1.4 dummy pdf content';
-    $response = $this->callHandleNotify($id, ['pdf' => base64_encode($pdfContent)]);
+    $response = $this->callHandleNotify($reportId);
 
     $this->assertTrue($response['data']['sent']);
     $this->assertCount(1, Mailer::$statusNotifications);
-    $attachment = Mailer::$statusNotifications[0]['attachment'];
-    $this->assertNotNull($attachment);
-    $this->assertSame($pdfContent, $attachment['content']);
-    $this->assertSame("submission_{$id}.pdf", $attachment['filename']);
-  }
-
-  public function test_異常系_不正なbase64は添付なしとして扱われる(): void {
-    $id = $this->createSubmission();
-    $this->setSubmissionStatus($id, '審査中');
-
-    $response = $this->callHandleNotify($id, ['pdf' => '!!!not-valid-base64!!!']);
-
-    $this->assertTrue($response['data']['sent']);
-    $this->assertCount(1, Mailer::$statusNotifications);
-    $this->assertNull(Mailer::$statusNotifications[0]['attachment']);
   }
 
   public function test_正常系_対象外ステータスの場合は送信されない(): void {
-    $id = $this->createSubmission();
-    $this->setSubmissionStatus($id, '対象外');
+    $submission = $this->createSubmission();
+    $reportId   = $this->createReport($submission['edit_token']);
+    $this->setReportStatus($reportId, '対象外');
 
-    $response = $this->callHandleNotify($id);
+    $response = $this->callHandleNotify($reportId);
 
     $this->assertFalse($response['data']['sent']);
     $this->assertCount(0, Mailer::$statusNotifications);
   }
 
-  // 団体名がメール本文に含まれることを確認する（4ステータス共通）
+  // 団体名がメール本文に含まれることを確認する（2ステータス共通）
   public function test_正常系_メール本文に団体名が含まれる(): void {
-    foreach (['審査前', '審査中', '承認', '否決'] as $status) {
+    foreach (['要修正', '確認済'] as $status) {
       Mailer::$statusNotifications = [];
 
-      $id = $this->createSubmission();
-      $this->setSubmissionStatus($id, $status);
-      $this->callHandleNotify($id);
+      $submission = $this->createSubmission();
+      $reportId   = $this->createReport($submission['edit_token']);
+      $this->setReportStatus($reportId, $status);
+      $this->callHandleNotify($reportId);
 
       $this->assertCount(1, Mailer::$statusNotifications, "status={$status}");
       $body = Mailer::$statusNotifications[0]['body'];
@@ -156,4 +174,5 @@ class SubmissionNotifyTest extends TestCase {
       );
     }
   }
+
 }
