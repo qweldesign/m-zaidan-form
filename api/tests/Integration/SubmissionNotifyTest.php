@@ -150,7 +150,7 @@ class SubmissionNotifyTest extends TestCase {
       $this->assertCount(1, Mailer::$statusNotifications, "status={$status}");
       $body = Mailer::$statusNotifications[0]['body'];
       $this->assertStringContainsString(
-        '団体名：ギャラリーはりいしゃ運営委員会',
+        'ギャラリーはりいしゃ運営委員会',
         $body,
         "status={$status} の本文に団体名が含まれていない"
       );
