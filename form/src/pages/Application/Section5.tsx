@@ -49,10 +49,10 @@ function Section5({ register, errors, watch, control, isEditMode }: Props) {
             <tr className="block md:table-row">
               <td className="block md:table-cell p-5 align-top md:w-70">
                 <label className="block font-bold">
-                  日頃の活動が分かる写真
+                  日頃の活動が分かる写真<span className="text-red-500 ml-1">*</span>
                 </label>
                 <p className="mt-2 text-sm text-slate-500">
-                  JPEG / PNG形式・最大3枚 5MB以内
+                  JPEG / PNG形式・3枚必須（各5MB以内）
                 </p>
               </td>
               <td className="block md:table-cell p-5">

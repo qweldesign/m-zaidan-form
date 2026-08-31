@@ -19,11 +19,13 @@ function PhotoSlots<T extends FieldValues>({ control, errors, name, maxSlots, is
         name={name}
         control={control}
         defaultValue={[] as any}
-        // PhotoSlots の rules を変更
+        // 写真は「1枚以上」ではなく、規定枚数（maxSlots）ちょうどが必須。
+        // 編集時（isEditMode）は毎回選び直す必要はないため、この必須チェックは
+        // 新規申請・新規提出時のみ働く（既存ファイルはPUT側のマージで保持される）。
         rules={{
           validate: (files: File[]) => {
-            if (!isEditMode && (!files || files.length === 0)) return '写真を1枚以上アップロードしてください'
-            if (files && files.length > 3) return '写真は最大3枚までです'
+            if (!isEditMode && (!files || files.length !== maxSlots)) return `写真は${maxSlots}枚必須です`
+            if (files && files.length > maxSlots) return `写真は最大${maxSlots}枚までです`
             for (const file of files ?? []) {
               if (file.size > 5 * 1024 * 1024) return `${file.name} のファイルサイズが5MBを超えています`
             }

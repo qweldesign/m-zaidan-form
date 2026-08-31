@@ -11,17 +11,35 @@ class ValidatorTest extends TestCase {
     $_FILES = [];
   }
 
-  // 要望申請の添付資料（写真1枚＋PDF5種）が全て揃っている状態の $_FILES モック。
+  // 要望申請の添付資料（写真3枚＋PDF5種）が全て揃っている状態の $_FILES モック。
   // テキスト項目のバリデーションだけを見たいテストでは、これを設定して
   // 添付資料由来のエラーが混ざらないようにする。
+  // 写真は規定枚数（Validator::SUBMISSION_PHOTO_COUNT）ちょうどが必須。
   private function validSubmissionFiles(): array {
     return [
-      'photos'          => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'],  'name' => ['p.jpg']],
+      'photos'          => [
+        'error'    => [UPLOAD_ERR_OK, UPLOAD_ERR_OK, UPLOAD_ERR_OK],
+        'tmp_name' => ['/tmp/p1.jpg', '/tmp/p2.jpg', '/tmp/p3.jpg'],
+        'name'     => ['p1.jpg', 'p2.jpg', 'p3.jpg'],
+      ],
       'regulations'     => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/r.pdf',  'name' => 'r.pdf'],
       'activityReport'  => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/a.pdf',  'name' => 'a.pdf'],
       'financialReport' => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/f.pdf',  'name' => 'f.pdf'],
       'activityPlan'    => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/ap.pdf', 'name' => 'ap.pdf'],
       'financialPlan'   => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/fp.pdf', 'name' => 'fp.pdf'],
+    ];
+  }
+
+  // 完了報告の添付資料（写真2枚＋領収書1枚）が全て揃っている状態の $_FILES モック。
+  // 写真は規定枚数（Validator::REPORT_PHOTO_COUNT）ちょうどが必須。
+  private function validReportFiles(): array {
+    return [
+      'photos'   => [
+        'error'    => [UPLOAD_ERR_OK, UPLOAD_ERR_OK],
+        'tmp_name' => ['/tmp/p1.jpg', '/tmp/p2.jpg'],
+        'name'     => ['p1.jpg', 'p2.jpg'],
+      ],
+      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
     ];
   }
 
@@ -257,19 +275,7 @@ class ValidatorTest extends TestCase {
   //
 
   public function test_レポート_全項目が揃っていればエラーなし(): void {
-    // $_FILES をモック
-    $_FILES = [
-      'photos' => [
-        'error'    => [UPLOAD_ERR_OK],
-        'tmp_name' => ['/tmp/test_photo.jpg'],
-        'name'     => ['photo.jpg'],
-      ],
-      'receipts' => [
-        'error'    => [UPLOAD_ERR_OK],
-        'tmp_name' => ['/tmp/test_receipt.pdf'],
-        'name'     => ['receipt.pdf'],
-      ],
-    ];
+    $_FILES = $this->validReportFiles();
 
     $body = [
       'report_section1_json' => json_encode([
@@ -292,10 +298,7 @@ class ValidatorTest extends TestCase {
   }
 
   public function test_レポート_contactEmailが不正な形式ならエラーが返る(): void {
-    $_FILES = [
-      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
-      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
-    ];
+    $_FILES = $this->validReportFiles();
 
     $body = [
       'report_section1_json' => json_encode([
@@ -319,10 +322,7 @@ class ValidatorTest extends TestCase {
   }
 
   public function test_レポート_grantRequestが0ならエラーが返る(): void {
-    $_FILES = [
-      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
-      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
-    ];
+    $_FILES = $this->validReportFiles();
 
     $body = [
       'report_section1_json' => json_encode([
@@ -346,10 +346,7 @@ class ValidatorTest extends TestCase {
   }
 
   public function test_レポート_grantRequestが負の値ならエラーが返る(): void {
-    $_FILES = [
-      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
-      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
-    ];
+    $_FILES = $this->validReportFiles();
 
     $body = [
       'report_section1_json' => json_encode([
@@ -396,12 +393,74 @@ class ValidatorTest extends TestCase {
     $errors = Validator::validateReport($body);
 
     $this->assertCount(1, $errors);
-    $this->assertContains('活動実施写真は必須です', $errors);
+    $this->assertContains('活動実施写真は2枚必須です', $errors);
+  }
+
+  public function test_レポート_写真が規定枚数より少なければエラーが返る(): void {
+    $_FILES = [
+      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
+      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
+    ];
+
+    $body = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => 'ギャラリーはりいしゃ',
+        'income'          => ['grantRequest' => 100000],
+      ]),
+    ];
+
+    $errors = Validator::validateReport($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('活動実施写真は2枚必須です', $errors);
+  }
+
+  public function test_レポート_写真が規定枚数より多ければエラーが返る(): void {
+    $_FILES = [
+      'photos'   => [
+        'error'    => [UPLOAD_ERR_OK, UPLOAD_ERR_OK, UPLOAD_ERR_OK],
+        'tmp_name' => ['/tmp/p1.jpg', '/tmp/p2.jpg', '/tmp/p3.jpg'],
+        'name'     => ['p1.jpg', 'p2.jpg', 'p3.jpg'],
+      ],
+      'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
+    ];
+
+    $body = [
+      'report_section1_json' => json_encode([
+        'teamName'     => 'ギャラリーはりいしゃ運営委員会',
+        'contactName'  => '伊藤 大悟',
+        'contactEmail' => 'hariisha@example.com',
+      ]),
+      'report_section2_json' => json_encode([
+        'projectName'     => '地域交流イベント',
+        'actualStartDate' => '2025-06-01',
+        'actualEndDate'   => '2025-06-30',
+        'actualVenue'     => 'ギャラリーはりいしゃ',
+        'income'          => ['grantRequest' => 100000],
+      ]),
+    ];
+
+    $errors = Validator::validateReport($body);
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('活動実施写真は2枚必須です', $errors);
   }
 
   public function test_レポート_領収書がなければエラーが返る(): void {
     $_FILES = [
-      'photos'   => ['error' => [UPLOAD_ERR_OK],      'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
+      'photos'   => [
+        'error'    => [UPLOAD_ERR_OK, UPLOAD_ERR_OK],
+        'tmp_name' => ['/tmp/p1.jpg', '/tmp/p2.jpg'],
+        'name'     => ['p1.jpg', 'p2.jpg'],
+      ],
       'receipts' => ['error' => [UPLOAD_ERR_NO_FILE], 'tmp_name' => [''],           'name' => ['']],
     ];
 
@@ -457,7 +516,7 @@ class ValidatorTest extends TestCase {
     $errors = Validator::validateSubmission($this->validTextFieldsBody());
 
     $this->assertCount(6, $errors);
-    $this->assertContains('活動写真は必須です', $errors);
+    $this->assertContains('活動写真は3枚必須です', $errors);
     $this->assertContains('団体規約は必須です', $errors);
     $this->assertContains('直近年度の活動報告書は必須です', $errors);
     $this->assertContains('直近年度の収支決算書は必須です', $errors);
@@ -472,7 +531,40 @@ class ValidatorTest extends TestCase {
     $errors = Validator::validateSubmission($this->validTextFieldsBody());
 
     $this->assertCount(1, $errors);
-    $this->assertContains('活動写真は必須です', $errors);
+    $this->assertContains('活動写真は3枚必須です', $errors);
+  }
+
+  // 写真は「1枚以上」ではなく「規定枚数（3枚）ちょうど」が必須になったため、
+  // 1〜2枚だけの場合もエラーになることを確認する。
+  public function test_写真が規定枚数より少なければエラーになる(): void {
+    $_FILES = $this->validSubmissionFiles();
+    $_FILES['photos'] = [
+      'error'    => [UPLOAD_ERR_OK, UPLOAD_ERR_OK],
+      'tmp_name' => ['/tmp/p1.jpg', '/tmp/p2.jpg'],
+      'name'     => ['p1.jpg', 'p2.jpg'],
+    ];
+
+    $errors = Validator::validateSubmission($this->validTextFieldsBody());
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('活動写真は3枚必須です', $errors);
+  }
+
+  // 規定枚数を超えた場合もエラーになることを確認する
+  // （フォーム側はスロット数で枚数を制限しているため通常は発生しないが、
+  // APIを直接叩かれるケースに備えてサーバー側でも検証する）。
+  public function test_写真が規定枚数より多ければエラーになる(): void {
+    $_FILES = $this->validSubmissionFiles();
+    $_FILES['photos'] = [
+      'error'    => [UPLOAD_ERR_OK, UPLOAD_ERR_OK, UPLOAD_ERR_OK, UPLOAD_ERR_OK],
+      'tmp_name' => ['/tmp/p1.jpg', '/tmp/p2.jpg', '/tmp/p3.jpg', '/tmp/p4.jpg'],
+      'name'     => ['p1.jpg', 'p2.jpg', 'p3.jpg', 'p4.jpg'],
+    ];
+
+    $errors = Validator::validateSubmission($this->validTextFieldsBody());
+
+    $this->assertCount(1, $errors);
+    $this->assertContains('活動写真は3枚必須です', $errors);
   }
 
   public function test_PDFの一部が無ければその項目のみエラーになる(): void {

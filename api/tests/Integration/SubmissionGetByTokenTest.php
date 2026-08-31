@@ -55,7 +55,7 @@ class SubmissionGetByTokenTest extends TestCase {
     ];
     // 要望申請は写真・PDF5種が必須になったため、全て揃った状態にする
     $_FILES = [
-      'photos'          => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/photo.jpg'], 'name' => ['photo.jpg']],
+      'photos'          => ['error' => [UPLOAD_ERR_OK, UPLOAD_ERR_OK, UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/photo1.jpg', '/tmp/photo2.jpg', '/tmp/photo3.jpg'], 'name' => ['photo1.jpg', 'photo2.jpg', 'photo3.jpg']],
       'regulations'     => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/regulations.pdf',     'name' => 'regulations.pdf'],
       'activityReport'  => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/activityReport.pdf',  'name' => 'activityReport.pdf'],
       'financialReport' => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/financialReport.pdf', 'name' => 'financialReport.pdf'],

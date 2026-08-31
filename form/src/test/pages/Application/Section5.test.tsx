@@ -46,7 +46,7 @@ describe('Section5（要望申請フォーム・添付資料の isEditMode 伝�
 
     await userEvent.click(screen.getByRole('button', { name: '検証' }))
 
-    expect(await screen.findByText('写真を1枚以上アップロードしてください')).toBeInTheDocument()
+    expect(await screen.findByText('写真は3枚必須です')).toBeInTheDocument()
   })
 
   it('isEditMode=true（編集）では、写真未添付でもバリデーションエラーにならない', async () => {
@@ -54,6 +54,6 @@ describe('Section5（要望申請フォーム・添付資料の isEditMode 伝�
 
     await userEvent.click(screen.getByRole('button', { name: '検証' }))
 
-    expect(screen.queryByText('写真を1枚以上アップロードしてください')).not.toBeInTheDocument()
+    expect(screen.queryByText('写真は3枚必須です')).not.toBeInTheDocument()
   })
 })

@@ -41,7 +41,7 @@ describe('ReportSection3（完了報告フォーム・添付資料の isEditMode
 
     await userEvent.click(screen.getByRole('button', { name: '検証' }))
 
-    expect(await screen.findByText('写真を1枚以上アップロードしてください')).toBeInTheDocument()
+    expect(await screen.findByText('写真は2枚必須です')).toBeInTheDocument()
     expect(await screen.findByText('領収書をアップロードしてください')).toBeInTheDocument()
   })
 
@@ -50,7 +50,7 @@ describe('ReportSection3（完了報告フォーム・添付資料の isEditMode
 
     await userEvent.click(screen.getByRole('button', { name: '検証' }))
 
-    expect(screen.queryByText('写真を1枚以上アップロードしてください')).not.toBeInTheDocument()
+    expect(screen.queryByText('写真は2枚必須です')).not.toBeInTheDocument()
     expect(screen.queryByText('領収書をアップロードしてください')).not.toBeInTheDocument()
   })
 })

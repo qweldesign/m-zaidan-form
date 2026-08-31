@@ -46,7 +46,7 @@ class ReportListTest extends TestCase {
       ], $overrides['section2'] ?? [])),
     ];
     $_FILES = [
-      'photos'   => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p.jpg'], 'name' => ['p.jpg']],
+      'photos'   => ['error' => [UPLOAD_ERR_OK, UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/p1.jpg', '/tmp/p2.jpg'], 'name' => ['p1.jpg', 'p2.jpg']],
       'receipts' => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/r.pdf'], 'name' => ['r.pdf']],
     ];
 

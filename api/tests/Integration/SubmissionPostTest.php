@@ -58,7 +58,7 @@ class SubmissionPostTest extends TestCase {
   // バリデーション・DB保存の検証には影響しない。
   private function validFilesUpload(): array {
     return [
-      'photos'          => ['error' => [UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/photo.jpg'], 'name' => ['photo.jpg']],
+      'photos'          => ['error' => [UPLOAD_ERR_OK, UPLOAD_ERR_OK, UPLOAD_ERR_OK], 'tmp_name' => ['/tmp/photo1.jpg', '/tmp/photo2.jpg', '/tmp/photo3.jpg'], 'name' => ['photo1.jpg', 'photo2.jpg', 'photo3.jpg']],
       'regulations'     => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/regulations.pdf',     'name' => 'regulations.pdf'],
       'activityReport'  => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/activityReport.pdf',  'name' => 'activityReport.pdf'],
       'financialReport' => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/financialReport.pdf', 'name' => 'financialReport.pdf'],
@@ -216,7 +216,7 @@ class SubmissionPostTest extends TestCase {
     $response = $this->callHandlePost();
 
     $this->assertArrayHasKey('error', $response);
-    $this->assertStringContainsString('活動写真は必須です', $response['error']);
+    $this->assertStringContainsString('活動写真は3枚必須です', $response['error']);
 
     $stmt  = $this->db->query('SELECT COUNT(*) as cnt FROM submissions');
     $count = $stmt->fetch()['cnt'];
