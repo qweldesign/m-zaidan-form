@@ -8,9 +8,19 @@ type Props<T extends FieldValues> = {
   errors: FieldErrors<T>
   name: Path<T>
   isEditMode?: boolean
+  maxFiles?: number
 }
 
-function ReceiptUploader<T extends FieldValues>({ control, errors, name, isEditMode = false }: Props<T>) {
+// maxFiles のデフォルト値について：
+// 領収書には枚数上限が無く、post_max_size（リクエスト全体のサイズ上限）を
+// 超えるほど大量にアップロードされてしまう可能性があった。完了報告フォームは
+// 活動実施写真（最大2枚×5MB＝10MB）と合わせて1リクエストになるため、
+// 領収書1ファイルあたりの上限（5MB）を踏まえ、10枚（最大50MB）を上限とする。
+// 写真分と合わせても60MB程度となり、`.user.ini` の post_max_size（80M）に
+// 十分収まる。
+const DEFAULT_MAX_FILES = 10
+
+function ReceiptUploader<T extends FieldValues>({ control, errors, name, isEditMode = false, maxFiles = DEFAULT_MAX_FILES }: Props<T>) {
   return (
     <>
       <Controller
@@ -20,14 +30,16 @@ function ReceiptUploader<T extends FieldValues>({ control, errors, name, isEditM
         rules={{
           validate: (files: File[]) => {
             if (!isEditMode && (!files || files.length === 0)) return '領収書をアップロードしてください'
+            if (files && files.length > maxFiles) return `領収書は最大${maxFiles}枚までです`
             for (const file of files ?? []) {
-              if (file.size > 10 * 1024 * 1024) return `${file.name} のファイルサイズが10MBを超えています`
+              if (file.size > 5 * 1024 * 1024) return `${file.name} のファイルサイズが5MBを超えています`
             }
             return true
           },
         }}
         render={({ field }) => {
-          const files = field.value ?? []
+          const files    = field.value ?? []
+          const isAtMax  = files.length >= maxFiles
 
           const handleAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0]
@@ -68,23 +80,29 @@ function ReceiptUploader<T extends FieldValues>({ control, errors, name, isEditM
                 </div>
               ))}
 
-              {/* 追加ボタン */}
-              <div className="rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50/30 p-5">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <span className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition whitespace-nowrap">
-                    ファイルを追加
-                  </span>
-                  <span className="text-sm text-slate-500">
-                    {files.length === 0 ? 'ファイルを選択してください' : `現在 ${files.length} ファイル`}
-                  </span>
-                  <input
-                    type="file"
-                    accept="application/pdf,image/jpeg,image/png"
-                    className="hidden"
-                    onChange={handleAdd}
-                  />
-                </label>
-              </div>
+              {/* 追加ボタン（上限に達したら非表示にし、代わりに上限メッセージを出す） */}
+              {isAtMax ? (
+                <p className="text-sm text-slate-500">
+                  領収書は最大{maxFiles}枚まで添付できます（現在 {files.length} ファイル）
+                </p>
+              ) : (
+                <div className="rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50/30 p-5">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <span className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition whitespace-nowrap">
+                      ファイルを追加
+                    </span>
+                    <span className="text-sm text-slate-500">
+                      {files.length === 0 ? 'ファイルを選択してください' : `現在 ${files.length} ファイル`}
+                    </span>
+                    <input
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png"
+                      className="hidden"
+                      onChange={handleAdd}
+                    />
+                  </label>
+                </div>
+              )}
 
             </div>
           )

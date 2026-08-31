@@ -74,7 +74,7 @@ function ReportSection3({ register, errors, watch, control, isEditMode }: Props)
                   領収書<span className="text-red-500 ml-1">*</span>
                 </label>
                 <p className="mt-2 text-sm text-slate-500">
-                  PDF / JPEG / PNG形式・1ファイル10MB以内<br />
+                  PDF / JPEG / PNG形式・最大10枚 1ファイル5MB以内<br />
                   助成金使用額分だけでなく申請事業にかかった全額分
                 </p>
               </td>
