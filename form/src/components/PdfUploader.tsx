@@ -9,15 +9,16 @@ type Props<T extends FieldValues> = {
   name: Path<T>
   label: string
   isEditMode?: boolean
+  required?: boolean
 }
 
-// 単一必須PDFファイルのアップロード欄。
+// 単一PDFファイルのアップロード欄（必須・任意のいずれにも対応）。
 // Controller経由でreact-hook-formの中央stateにFileオブジェクトを保持することで、
 // このコンポーネントがアンマウント・再マウントされても選択済みファイルが
 // 失われないようにしている（STEPの切り替えで <input type="file"> 自体を
 // register() だけで非制御に扱っていた旧実装では、STEPを離れると
 // ブラウザ側のDOM要素ごと選択状態が消えてしまっていた）。
-function PdfUploader<T extends FieldValues>({ control, errors, name, label, isEditMode = false }: Props<T>) {
+function PdfUploader<T extends FieldValues>({ control, errors, name, label, isEditMode = false, required = true }: Props<T>) {
   return (
     <>
       <Controller
@@ -26,7 +27,7 @@ function PdfUploader<T extends FieldValues>({ control, errors, name, label, isEd
         defaultValue={null as any}
         rules={{
           validate: (file: File | null) => {
-            if (!isEditMode && !file) return `${label}をアップロードしてください`
+            if (required && !isEditMode && !file) return `${label}をアップロードしてください`
             if (file && file.size > 10 * 1024 * 1024) return `ファイルサイズが10MBを超えています`
             return true
           },

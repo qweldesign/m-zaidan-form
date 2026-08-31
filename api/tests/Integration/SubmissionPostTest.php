@@ -318,4 +318,50 @@ class SubmissionPostTest extends TestCase {
     $this->assertArrayHasKey('docs',   $decoded);
   }
 
+  // 「その他」（機関誌・新聞記事等の補足資料、見積書・カタログなど）は
+  // 必須のPDF5種とは異なり任意の添付資料。未添付でも申請が保存できることを
+  // 確認する（validFilesUpload() はそもそも 'other' を含まない）。
+  public function test_正常系_その他が未添付でも申請データがDBに保存される(): void {
+    $_POST = [
+      'section1_json' => json_encode($this->validSection1()),
+      'section2_json' => json_encode($this->validSection2()),
+      'section3_json' => json_encode($this->validSection3()),
+      'section4_json' => json_encode([]),
+    ];
+    $_FILES = $this->validFilesUpload();
+
+    $response = $this->callHandlePost();
+
+    $this->assertEquals('申請を受け付けました', $response['message']);
+
+    $id   = $response['data']['id'];
+    $stmt = $this->db->prepare('SELECT section5_json FROM submissions WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $decoded = json_decode($stmt->fetch()['section5_json'], true);
+
+    $this->assertArrayNotHasKey('other', $decoded['docs']);
+  }
+
+  // 「その他」を添付した場合は、他のPDF資料と同様に docs.other として保存される。
+  public function test_正常系_その他を添付するとdocsに保存される(): void {
+    $_POST  = [
+      'section1_json' => json_encode($this->validSection1()),
+      'section2_json' => json_encode($this->validSection2()),
+      'section3_json' => json_encode($this->validSection3()),
+      'section4_json' => json_encode([]),
+    ];
+    $_FILES = $this->validFilesUpload();
+    $_FILES['other'] = ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/other.pdf', 'name' => 'other.pdf'];
+
+    $response = $this->callHandlePost();
+    $id       = $response['data']['id'];
+
+    $stmt = $this->db->prepare('SELECT section5_json FROM submissions WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $decoded = json_decode($stmt->fetch()['section5_json'], true);
+
+    $this->assertArrayHasKey('other', $decoded['docs']);
+    $this->assertNotEmpty($decoded['docs']['other']);
+  }
+
 }

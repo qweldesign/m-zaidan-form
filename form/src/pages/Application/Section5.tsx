@@ -14,11 +14,15 @@ type Props = {
 }
 
 const PDF_DOCS = [
-  { label: '団体規約',             field: 'docs.regulations'    },
-  { label: '直近年度の活動報告書',  field: 'docs.activityReport'  },
-  { label: '直近年度の収支決算書',  field: 'docs.financialReport' },
-  { label: '直近年度の活動計画書',  field: 'docs.activityPlan'    },
-  { label: '直近年度の収支計画書',  field: 'docs.financialPlan'   },
+  { label: '団体規約',             field: 'docs.regulations',    required: true,  hint: 'PDF形式・10MB以内' },
+  { label: '直近年度の活動報告書',  field: 'docs.activityReport',  required: true,  hint: 'PDF形式・10MB以内' },
+  { label: '直近年度の収支決算書',  field: 'docs.financialReport', required: true,  hint: 'PDF形式・10MB以内' },
+  { label: '直近年度の活動計画書',  field: 'docs.activityPlan',    required: true,  hint: 'PDF形式・10MB以内' },
+  { label: '直近年度の収支計画書',  field: 'docs.financialPlan',   required: true,  hint: 'PDF形式・10MB以内' },
+  {
+    label: 'その他', field: 'docs.other', required: false,
+    hint: 'PDF形式・10MB以内（任意）機関誌、活動を紹介した新聞記事等、申請事業や日常活動のわかる補足資料、見積書・カタログなど',
+  },
 ] as const
 
 function Section5({ register, errors, watch, control, isEditMode }: Props) {
@@ -82,16 +86,20 @@ function Section5({ register, errors, watch, control, isEditMode }: Props) {
 
         <table className="block md:table w-full border-collapse">
           <tbody className="block md:table-row-group">
-            {PDF_DOCS.map(({ label, field }) => (
+            {PDF_DOCS.map(({ label, field, required, hint }) => (
               <tr
                 key={field}
                 className="block md:table-row border-b border-slate-100 last:border-none"
               >
                 <td className="block md:table-cell p-5 align-top md:w-70">
                   <label className="block font-bold">
-                    {label}<span className="text-red-500 ml-1">*</span>
+                    {label}
+                    {required
+                      ? <span className="text-red-500 ml-1">*</span>
+                      : <span className="text-slate-400 font-normal ml-1">（任意）</span>
+                    }
                   </label>
-                  <p className="mt-2 text-sm text-slate-500">PDF形式・10MB以内</p>
+                  <p className="mt-2 text-sm text-slate-500">{hint}</p>
                 </td>
                 <td className="block md:table-cell p-5">
                   <PdfUploader
@@ -100,6 +108,7 @@ function Section5({ register, errors, watch, control, isEditMode }: Props) {
                     name={`section5.${field}` as const}
                     label={label}
                     isEditMode={isEditMode}
+                    required={required}
                   />
                 </td>
               </tr>

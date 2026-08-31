@@ -129,6 +129,7 @@ function Application({ editToken }: Props) {
           financialReport: null,
           activityPlan: null,
           financialPlan: null,
+          other: null,
         },
         confirmed: false,
       },
@@ -203,6 +204,7 @@ function Application({ editToken }: Props) {
         'financialReport',
         'activityPlan',
         'financialPlan',
+        'other',
       ] as const
 
       docFields.forEach((field) => {
@@ -267,6 +269,7 @@ function Application({ editToken }: Props) {
               financialReport: null,
               activityPlan:  null,
               financialPlan: null,
+              other:         null,
             },
             confirmed: false,
           },

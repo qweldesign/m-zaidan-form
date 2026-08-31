@@ -585,6 +585,26 @@ class ValidatorTest extends TestCase {
     $this->assertEmpty($errors);
   }
 
+  // 「その他」（機関誌・新聞記事等の補足資料、見積書・カタログなど）は
+  // 必須のPDF5種とは異なり任意の添付資料。未添付でもエラーにならない。
+  public function test_その他が未添付でもエラーにならない(): void {
+    $_FILES = $this->validSubmissionFiles();  // 'other' を含まない
+
+    $errors = Validator::validateSubmission($this->validTextFieldsBody());
+
+    $this->assertEmpty($errors);
+  }
+
+  // 添付した場合もエラーにならず、他のPDF資料の検証に影響しないことを確認する。
+  public function test_その他を添付してもエラーにならない(): void {
+    $_FILES = $this->validSubmissionFiles();
+    $_FILES['other'] = ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/o.pdf', 'name' => 'o.pdf'];
+
+    $errors = Validator::validateSubmission($this->validTextFieldsBody());
+
+    $this->assertEmpty($errors);
+  }
+
   //
   // validateSubmissionFiles（編集/PUT時：マージ後の最終状態を検証）
   //
@@ -598,6 +618,25 @@ class ValidatorTest extends TestCase {
         'financialReport' => 'uploads/2026/financialReport_1.pdf',
         'activityPlan'    => 'uploads/2026/activityPlan_1.pdf',
         'financialPlan'   => 'uploads/2026/financialPlan_1.pdf',
+      ],
+    ];
+
+    $errors = Validator::validateSubmissionFiles($section5);
+
+    $this->assertEmpty($errors);
+  }
+
+  // 「その他」（任意）はマージ後の最終状態チェックでも必須対象外であることを確認する。
+  public function test_validateSubmissionFiles_その他が無くてもエラーにならない(): void {
+    $section5 = [
+      'photos' => ['uploads/2026/photo_1.jpg'],
+      'docs'   => [
+        'regulations'     => 'uploads/2026/regulations_1.pdf',
+        'activityReport'  => 'uploads/2026/activityReport_1.pdf',
+        'financialReport' => 'uploads/2026/financialReport_1.pdf',
+        'activityPlan'    => 'uploads/2026/activityPlan_1.pdf',
+        'financialPlan'   => 'uploads/2026/financialPlan_1.pdf',
+        // other が無い
       ],
     ];
 

@@ -53,8 +53,10 @@ class Validator {
     return count(array_filter($files['error'], fn($e) => $e === UPLOAD_ERR_OK));
   }
 
-  // 要望申請の添付資料（PDF5種）のフィールド名とラベルの対応。
-  // Section5.tsx（フォーム側）の PDF_DOCS と対応させること。
+  // 要望申請の必須添付資料（PDF5種）のフィールド名とラベルの対応。
+  // Section5.tsx（フォーム側）の PDF_DOCS のうち required: true の項目と
+  // 対応させること。'other'（その他の補足資料）は任意のため、意図的に
+  // ここには含めていない（必須チェックの対象外）。
   const PDF_DOC_LABELS = [
     'regulations'     => '団体規約',
     'activityReport'  => '直近年度の活動報告書',

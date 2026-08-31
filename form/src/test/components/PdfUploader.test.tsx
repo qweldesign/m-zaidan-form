@@ -6,21 +6,26 @@ import { useForm } from 'react-hook-form'
 import PdfUploader from '../../components/PdfUploader'
 import type { FormData } from '../../types/form'
 
-function PdfUploaderWrapper({ isEditMode = false }: { isEditMode?: boolean }) {
-  const { control, formState: { errors } } = useForm<FormData>({
+function PdfUploaderWrapper({ isEditMode = false, required }: { isEditMode?: boolean; required?: boolean }) {
+  const { control, trigger, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       section5: { docs: { regulations: null } as any },
     },
   })
 
   return (
-    <PdfUploader
-      control={control}
-      errors={errors}
-      name="section5.docs.regulations"
-      label="団体規約"
-      isEditMode={isEditMode}
-    />
+    <>
+      <PdfUploader
+        control={control}
+        errors={errors}
+        name="section5.docs.regulations"
+        label="団体規約"
+        isEditMode={isEditMode}
+        required={required}
+      />
+      {/* 送信時相当のバリデーションを発火させるための検証ボタン（テスト用） */}
+      <button type="button" onClick={() => trigger(['section5.docs.regulations'] as any)}>検証</button>
+    </>
   )
 }
 
@@ -143,6 +148,43 @@ describe('PdfUploader', () => {
 
       // 選択済みファイルがそのまま復元されている
       expect(screen.getByText('kiyaku.pdf')).toBeInTheDocument()
+    })
+  })
+
+  // ============================================================
+  // 必須／任意（required プロパティ）
+  // ============================================================
+  // 「その他」資料のように必須ではない添付欄向けに required={false} を
+  // 追加した。デフォルト（required 未指定）は従来どおり必須のままであること、
+  // required={false} の場合は未選択でも検証エラーにならないことを確認する。
+
+  describe('必須／任意（required プロパティ）', () => {
+    it('required未指定（デフォルト）では、未選択で検証するとエラーになる', async () => {
+      render(<PdfUploaderWrapper />)
+
+      await userEvent.click(screen.getByRole('button', { name: '検証' }))
+
+      expect(await screen.findByText('団体規約をアップロードしてください')).toBeInTheDocument()
+    })
+
+    it('required={false}では、未選択で検証してもエラーにならない', async () => {
+      render(<PdfUploaderWrapper required={false} />)
+
+      await userEvent.click(screen.getByRole('button', { name: '検証' }))
+
+      expect(screen.queryByText('団体規約をアップロードしてください')).not.toBeInTheDocument()
+    })
+
+    it('required={false}でも、ファイルサイズ超過はエラーになる', async () => {
+      render(<PdfUploaderWrapper required={false} />)
+
+      const bigFile = new File([new Uint8Array(11 * 1024 * 1024)], 'big.pdf', { type: 'application/pdf' })
+      const input   = document.querySelector('input[type="file"]') as HTMLInputElement
+      await userEvent.upload(input, bigFile)
+
+      await userEvent.click(screen.getByRole('button', { name: '検証' }))
+
+      expect(await screen.findByText('ファイルサイズが10MBを超えています')).toBeInTheDocument()
     })
   })
 

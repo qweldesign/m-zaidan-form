@@ -136,6 +136,8 @@ export type Section5Data = {
     financialReport: File | null
     activityPlan: File | null
     financialPlan: File | null
+    // 機関誌・新聞記事等の補足資料、見積書・カタログなど（任意）
+    other: File | null
   }
   confirmed: boolean
 }

@@ -126,8 +126,8 @@ function uploadFiles(): array {
     }
   }
 
-  // PDF各種
-  $docFields = ['regulations', 'activityReport', 'financialReport', 'activityPlan', 'financialPlan'];
+  // PDF各種（'other' はその他の補足資料。任意のため Validator の必須チェック対象外）
+  $docFields = ['regulations', 'activityReport', 'financialReport', 'activityPlan', 'financialPlan', 'other'];
   foreach ($docFields as $field) {
     if (!empty($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
       $filename = uniqid($field . '_') . '.pdf';

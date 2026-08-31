@@ -481,4 +481,29 @@ class SubmissionPutByTokenTest extends TestCase {
     }
   }
 
+  // 「その他」（任意の補足資料）も他のPDF資料と同様に、編集時のファイル追加
+  // マージ対象になっていることを確認する。
+  public function test_正常系_その他を編集時に追加できる(): void {
+    $submission = $this->createSubmission();
+
+    $_POST = [
+      'section1_json' => json_encode(['teamName' => 'ギャラリーはりいしゃ運営委員会']),
+      'section2_json' => json_encode(['projectName' => '地域交流イベント']),
+      'section3_json' => json_encode(['income' => ['grantRequest' => 100000], 'expenses' => []]),
+      'section4_json' => json_encode([]),
+    ];
+    $_FILES = [
+      'photos' => ['error' => [], 'tmp_name' => [], 'name' => []],
+      'other'  => ['error' => UPLOAD_ERR_OK, 'tmp_name' => '/tmp/other.pdf', 'name' => 'other.pdf'],
+    ];
+
+    $this->callHandlePutByToken($submission['edit_token']);
+
+    $stmt = $this->db->prepare('SELECT section5_json FROM submissions WHERE id = :id');
+    $stmt->execute([':id' => $submission['id']]);
+    $section5 = json_decode($stmt->fetch()['section5_json'], true);
+
+    $this->assertNotEmpty($section5['docs']['other'] ?? null);
+  }
+
 }
