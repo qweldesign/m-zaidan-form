@@ -28,11 +28,6 @@ function Section2({ register, errors, watch }: Props) {
       <div>
         <p className="text-sm text-sky-600 font-bold mb-2">STEP 2 / 5</p>
         <h2 className="text-3xl font-bold text-slate-800">Ⅱ．申請事業（助成対象事業）について</h2>
-        <p className="text-sm text-slate-500 my-3">※ 別紙
-          <a href="/" target="_blank" className="text-orange-400 hover:underline">
-            記載要領
-          </a>
-          に沿って入力してください。</p>
       </div>
 
       {/* 事業基本情報 */}

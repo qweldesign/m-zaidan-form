@@ -26,6 +26,22 @@ function Entrance() {
           <li>直近年度の活動計画書 (申請団体が作成した様式で可) (PDF形式)</li>
           <li>直近年度の収支計画書 (申請団体が作成した様式で可) (PDF形式)</li>
         </ul>
+        <ul className="flex gap-4">
+          <li className="w-24 py-4 text-center">
+            <p className="my-2 font-bold">応募要領</p>
+            <a className="block border-2 border-sky-400 rounded overflow-hidden hover:opacity-50 duration-300" href="/pdf/Application_Guidelines.pdf" target="_blank" rel="noopener noreferrer">
+              <p className="p-2 bg-sky-400 text-white">PDF</p>
+              <img className="inline-block my-4" src="/images/media_pdf.webp" />
+            </a>
+          </li>
+          <li className="w-24 py-4 text-center">
+            <p className="my-2 font-bold">記載要領</p>
+            <a className="block border-2 border-sky-400 rounded overflow-hidden hover:opacity-50 duration-300" href="/pdf/Completion_Guidelines.pdf" target="_blank" rel="noopener noreferrer">
+              <p className="p-2 bg-sky-400 text-white">PDF</p>
+              <img className="inline-block my-4" src="/images/media_pdf.webp" />
+            </a>
+          </li>
+        </ul>
         <Link to="/application" className="block w-3xs my-6 mx-auto py-3 rounded bg-sky-500 hover:bg-sky-200 text-white hover:text-black text-center transition-colors duration-300">
           要望申請フォームへ
         </Link>
